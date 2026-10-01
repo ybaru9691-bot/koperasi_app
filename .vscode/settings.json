@@ -1,0 +1,7 @@
+{
+  "dart.enableErrorSquiggles": true,
+  "dart.analysisExcludedFolders": [
+    "build",
+    ".dart_tool"
+  ]
+}
