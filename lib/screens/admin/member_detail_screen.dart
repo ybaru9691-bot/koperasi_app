@@ -140,7 +140,8 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final m = _fetched ?? widget.member;
-    final bool isActive = (m.status.toLowerCase() == 'aktif' || m.status.toLowerCase() == 'active');
+    final bool isResigned = (m.status.toLowerCase() == 'resigned' || m.status.toLowerCase() == 'keluar');
+    final bool isMemberActive = !isResigned;
     final phone = m.phone.isNotEmpty && m.phone != '-' ? m.phone : '-';
     final email = m.email.isNotEmpty && m.email != '-' ? m.email : '-';
 
@@ -172,7 +173,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (!isActive) ...[
+                if (isResigned) ...[
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 20),
@@ -239,7 +240,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                 _buildTrxList(),
               ]),
             ),
-      floatingActionButton: isActive
+      floatingActionButton: isMemberActive
           ? FloatingActionButton.extended(
               onPressed: () {
                 Navigator.push(
@@ -261,6 +262,8 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
 
   //  SECTION 1: Profil ─
   Widget _buildProfileCard(MemberModel m, String phone, String email) {
+    final bool isMemberActive = (m.status.toLowerCase() != 'resigned' && m.status.toLowerCase() != 'keluar');
+
     return _card(
       child: Column(children: [
         Row(children: [
@@ -331,15 +334,15 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: (m.status == 'aktif' || m.status == 'active') ? AppColors.successBg : AppColors.cardBorder,
+                color: isMemberActive ? AppColors.successBg : AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                (m.status == 'aktif' || m.status == 'active') ? 'Anggota Aktif' : m.status.toUpperCase(),
+                isMemberActive ? 'Anggota Aktif' : m.status.toUpperCase(),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: (m.status == 'aktif' || m.status == 'active') ? AppColors.success : AppColors.textMuted,
+                  color: isMemberActive ? AppColors.success : AppColors.textMuted,
                 ),
               ),
             ),
@@ -905,6 +908,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
     final total = principalSavings + mandatorySavings + voluntarySavings + dailySavings;
     final blueTotal = principalSavings + mandatorySavings + voluntarySavings;
     final whiteTotal = dailySavings;
+    final bool isResigned = (m.status.toLowerCase() == 'resigned' || m.status.toLowerCase() == 'keluar');
 
     return _card(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1051,7 +1055,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                             label: const Text('Cetak Buku Putih', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                           ElevatedButton.icon(
-                            onPressed: ((m.status != 'aktif' && m.status != 'active') || dailySavings <= 0)
+                            onPressed: (isResigned || dailySavings <= 0)
                                 ? null
                                 : () => _showCloseWhiteBookDialog(m),
                             style: ElevatedButton.styleFrom(
@@ -1079,7 +1083,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
-                        onPressed: (m.status != 'aktif' && m.status != 'active')
+                        onPressed: isResigned
                             ? null
                             : () => _showResignTotalDialog(m),
                         style: ElevatedButton.styleFrom(
@@ -1240,11 +1244,10 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       };
 
       final payload = jsonEncode({
-        'is_active': nextStatus,
-        'status': nextStatus ? 'aktif' : 'tidak_aktif',
-        'white_book_active': nextStatus,
         'is_white_book_active': nextStatus,
-        'status_buku_putih': nextStatus ? 'aktif' : 'tidak_aktif',
+        'white_book_active': nextStatus,
+        'is_active': nextStatus,
+        'status_buku_putih': nextStatus ? 'active' : 'inactive',
       });
 
       // Request API PATCH ke backend toggle-status Buku Putih
@@ -1287,43 +1290,60 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       }
 
       if (resp.statusCode == 200 || resp.statusCode == 204) {
+        String serverMsg = 'Status keaktifan anggota berhasil diubah menjadi $nextStatusLabel';
         try {
           final resBody = jsonDecode(resp.body);
+          if (resBody['message'] is String && resBody['message'].toString().isNotEmpty) {
+            serverMsg = resBody['message'];
+          }
           final updatedData = resBody['data'] ?? resBody['member'] ?? resBody['statement'] ?? resBody;
           if (updatedData is Map<String, dynamic>) {
             _rawData = {...?_rawData, ...updatedData};
           }
         } catch (_) {}
-      }
 
-      if (mounted) {
-        setState(() {
-          _whiteBookStatusOverride = nextStatus;
-          _isTogglingStatus = false;
-        });
+        if (_rawData != null) {
+          // PERATURAN MUTLAK: Hanya ubah is_white_book_active, JANGAN ubah _rawData!['status'] anggota!
+          _rawData!['is_white_book_active'] = nextStatus;
+          _rawData!['white_book_active'] = nextStatus;
+          if (_rawData!['buku_putih_ledger'] is Map) {
+            final bpLedger = Map<String, dynamic>.from(_rawData!['buku_putih_ledger'] as Map);
+            bpLedger['is_active'] = nextStatus;
+            bpLedger['status'] = nextStatus ? 'AKTIF' : 'TIDAK AKTIF';
+            bpLedger['status_label'] = nextStatus ? 'AKTIF' : 'TIDAK AKTIF';
+            _rawData!['buku_putih_ledger'] = bpLedger;
+          }
+        }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(
-                  nextStatus ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('Status keaktifan anggota berhasil diubah menjadi $nextStatusLabel'),
-                ),
-              ],
+        if (mounted) {
+          setState(() {
+            _whiteBookStatusOverride = nextStatus;
+            _isTogglingStatus = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    nextStatus ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(serverMsg),
+                  ),
+                ],
+              ),
+              backgroundColor: nextStatus ? AppColors.success : const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
             ),
-            backgroundColor: nextStatus ? AppColors.success : const Color(0xFFDC2626),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+          );
 
-        // Muat ulang data terbaru dengan preserveOverride agar sinkron penuh dengan server
-        _fetchDetails(preserveOverride: true);
+          // Muat ulang data terbaru agar sinkron penuh dengan server (termasuk riwayat transaksi dan saldo murni)
+          _fetchDetails(preserveOverride: false);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1361,12 +1381,21 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       num totalTarik = (serverStatement?['total_withdrawal'] ?? serverStatement?['total_tarik'] ?? serverStatement?['total_penarikan'] as num?)?.toDouble() ?? 0;
       num totalJasa = (serverStatement?['total_interest'] ?? serverStatement?['total_jasa'] ?? serverStatement?['total_bunga'] ?? _rawData?['total_jasa_buku_putih'] ?? _rawData?['total_jasa'] as num?)?.toDouble() ?? 0;
       num lastSaldo = (serverStatement?['closing_balance'] ?? serverStatement?['last_saldo'] ?? serverStatement?['final_balance'] ?? serverStatement?['saldo_akhir'] as num?)?.toDouble() ?? 0;
+      final String rawServerStatus = (serverStatement?['status'] ?? serverStatement?['status_label'] ?? '').toString().toLowerCase();
+      final bool isExplicitlyWbInactive = (_rawData?['is_white_book_active'] == false) ||
+          (_rawData?['white_book_active'] == false) ||
+          (serverStatement?['is_active'] == false) ||
+          rawServerStatus.contains('tidak') ||
+          rawServerStatus.contains('inactive') ||
+          rawServerStatus.contains('pasif');
+
       bool isActive = _whiteBookStatusOverride ??
-          (serverStatement?['is_active'] == true ||
-           serverStatement?['status'] == 'AKTIF' ||
-           serverStatement?['status'] == 'aktif' ||
-           _rawData?['is_white_book_active'] == true ||
-           _rawData?['white_book_active'] == true);
+          (!isExplicitlyWbInactive &&
+           (serverStatement?['is_active'] == true ||
+            serverStatement?['status'] == 'AKTIF' ||
+            serverStatement?['status'] == 'aktif' ||
+            _rawData?['is_white_book_active'] == true ||
+            _rawData?['white_book_active'] == true));
       int activeMonths = (serverStatement?['active_months_count'] ?? serverStatement?['active_months'] as int?) ?? 0;
       int passiveMonths = (serverStatement?['passive_months_count'] ?? serverStatement?['passive_months'] as int?) ?? (12 - activeMonths);
 
@@ -1478,12 +1507,21 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       num totalTarik = (serverStatement?['total_tarik'] ?? serverStatement?['total_withdrawal'] as num?)?.toDouble() ?? 0;
       num totalJasa = (serverStatement?['total_jasa'] ?? serverStatement?['total_interest'] ?? serverStatement?['total_bunga'] ?? _rawData?['total_jasa_buku_putih'] ?? _rawData?['total_jasa'] as num?)?.toDouble() ?? 0;
       num lastSaldo = (serverStatement?['last_saldo'] ?? serverStatement?['closing_balance'] ?? serverStatement?['final_balance'] ?? serverStatement?['saldo_akhir'] as num?)?.toDouble() ?? 0;
+      final String rawServerStatus = (serverStatement?['status'] ?? serverStatement?['status_label'] ?? '').toString().toLowerCase();
+      final bool isExplicitlyWbInactive = (_rawData?['is_white_book_active'] == false) ||
+          (_rawData?['white_book_active'] == false) ||
+          (serverStatement?['is_active'] == false) ||
+          rawServerStatus.contains('tidak') ||
+          rawServerStatus.contains('inactive') ||
+          rawServerStatus.contains('pasif');
+
       bool isActive = _whiteBookStatusOverride ??
-          (serverStatement?['is_active'] == true ||
-           serverStatement?['status'] == 'AKTIF' ||
-           serverStatement?['status'] == 'aktif' ||
-           _rawData?['is_white_book_active'] == true ||
-           _rawData?['white_book_active'] == true);
+          (!isExplicitlyWbInactive &&
+           (serverStatement?['is_active'] == true ||
+            serverStatement?['status'] == 'AKTIF' ||
+            serverStatement?['status'] == 'aktif' ||
+            _rawData?['is_white_book_active'] == true ||
+            _rawData?['white_book_active'] == true));
       int activeMonths = (serverStatement?['active_months_count'] ?? serverStatement?['active_months'] as int?) ?? 0;
 
       for (var r in serverFlatRows) {
@@ -1745,11 +1783,19 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       }
     }
 
+    final String rawServerStatus = (serverStatement?['status'] ?? serverStatement?['status_label'] ?? '').toString().toLowerCase();
+    final bool isExplicitlyWbInactive = (_rawData?['is_white_book_active'] == false) ||
+        (_rawData?['white_book_active'] == false) ||
+        (serverStatement?['is_active'] == false) ||
+        rawServerStatus.contains('tidak') ||
+        rawServerStatus.contains('inactive') ||
+        rawServerStatus.contains('pasif');
+
     final bool isCurrentActive = _whiteBookStatusOverride ??
-        (_rawData?['is_white_book_active'] == true ||
-         _rawData?['white_book_active'] == true ||
-         hasCashInPeriod ||
-         activeCashMonthsCount > 0);
+        (!isExplicitlyWbInactive &&
+         ((_rawData?['is_white_book_active'] == true ||
+           _rawData?['white_book_active'] == true) ||
+          (hasCashInPeriod || activeCashMonthsCount > 0)));
     final int passiveMonthsCount = 12 - activeCashMonthsCount;
 
     final num officialTotalJasa = (serverStatement?['total_jasa'] ??

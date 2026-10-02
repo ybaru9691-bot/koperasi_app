@@ -197,7 +197,7 @@ class _InputTransaksiScreenState extends State<InputTransaksiScreen>
 
         final activeMembers = parsedList.where((m) {
           final st = m.status.trim().toUpperCase();
-          return st == 'ACTIVE' || st == 'AKTIF';
+          return st != 'RESIGNED' && st != 'KELUAR';
         }).toList();
 
         if (mounted) {
@@ -410,7 +410,7 @@ class _InputTransaksiScreenState extends State<InputTransaksiScreen>
           builder: (context, setModalState) {
             final activeMembers = _membersList.where((m) {
               final st = m.status.trim().toUpperCase();
-              return st == 'ACTIVE' || st == 'AKTIF';
+              return st != 'RESIGNED' && st != 'KELUAR';
             }).toList();
 
             final filtered = activeMembers.where((m) {
@@ -665,10 +665,10 @@ class _InputTransaksiScreenState extends State<InputTransaksiScreen>
     );
 
     final String memberStatus = selectedMember.status.trim().toUpperCase();
-    if (memberStatus != 'ACTIVE' && memberStatus != 'AKTIF') {
+    if (memberStatus == 'RESIGNED' || memberStatus == 'KELUAR') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Transaksi gagal: Anggota sudah tidak aktif.'),
+          content: Text('Transaksi gagal: Anggota sudah berstatus Keluar / Resign.'),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
         ),

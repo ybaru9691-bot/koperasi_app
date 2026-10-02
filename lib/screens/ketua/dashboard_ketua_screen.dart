@@ -14,8 +14,6 @@ import 'system_settings_screen.dart';
 import 'shu_parameter_screen.dart';
 import 'shu_distribution_screen.dart';
 import 'transaction_approval_screen.dart';
-import '../admin/audit_log_screen.dart';
-import '../admin/backup_restore_screen.dart';
 import 'widgets/ketua_approval_table.dart';
 import 'widgets/ketua_header.dart';
 import 'widgets/ketua_stat_cards.dart';
@@ -711,12 +709,6 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
     if (_selectedNavIndex == 6) {
       return const PeriodManagementScreen();
     }
-    if (_selectedNavIndex == 7) {
-      return const AuditLogScreen();
-    }
-    if (_selectedNavIndex == 8) {
-      return const BackupRestoreScreen();
-    }
     if (_selectedNavIndex == 9) {
       return const ShuParameterScreen();
     }
@@ -1183,14 +1175,6 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
                 }),
                 _drawerMenuItem(Icons.pie_chart_rounded, 'Distribusi SHU & Deviden', _selectedNavIndex == 10, () {
                   setState(() => _selectedNavIndex = 10);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
-                }),
-                _drawerMenuItem(Icons.history_toggle_off_rounded, 'Audit Trail & Log', _selectedNavIndex == 7, () {
-                  setState(() => _selectedNavIndex = 7);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
-                }),
-                _drawerMenuItem(Icons.cloud_sync_rounded, 'Backup & Restore', _selectedNavIndex == 8, () {
-                  setState(() => _selectedNavIndex = 8);
                   if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
                 }),
               ],

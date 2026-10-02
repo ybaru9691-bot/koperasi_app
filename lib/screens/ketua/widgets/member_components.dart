@@ -279,23 +279,24 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> with SingleTick
         if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
 
-      final memberUri = Uri.parse('${AuthService.staticBaseUrl}/manager/members/${widget.member.id}');
-      final loanUri = Uri.parse('${AuthService.staticBaseUrl}/manager/members/${widget.member.id}/loans');
-      
-      final responses = await Future.wait([
-        http.get(memberUri, headers: headers).timeout(const Duration(seconds: 10)),
-        http.get(loanUri, headers: headers).timeout(const Duration(seconds: 10)),
-      ]);
+      // Gunakan endpoint /detail yang memuat active_loan & loan_history
+      // (endpoint /loans tidak terdaftar di backend, mengembalikan 404)
+      final detailUri = Uri.parse('${AuthService.staticBaseUrl}/manager/members/${widget.member.id}/detail');
 
-      if (responses[0].statusCode == 200) {
-        final body = jsonDecode(responses[0].body);
+      final response = await http.get(detailUri, headers: headers).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
         final data = body['data'] ?? body;
         debugPrint(">>> 2. RESPONSE BACKEND HASIL FETCH: $data");
-        
+
+        // active_loan & loan_history sudah tersedia di dalam response /detail
         Map<String, dynamic>? loansData;
-        if (responses[1].statusCode == 200) {
-          final loanBody = jsonDecode(responses[1].body);
-          loansData = loanBody['data'] ?? loanBody;
+        if (data['active_loan'] != null || data['loan_history'] != null) {
+          loansData = {
+            'active_loan':  data['active_loan'],
+            'loan_history': data['loan_history'] ?? [],
+          };
         }
 
         if (mounted) {
@@ -306,10 +307,10 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> with SingleTick
             _loansData = loansData;
             _isLoading = false;
           });
-          debugPrint(">>> 4. SETSTATE BERHASIL DIPANGGIL!");
+          debugPrint(">>> 4. SETSTATE BERHASIL DIPANGGIL! _loansData=${_loansData != null}");
         }
       } else {
-        debugPrint(">>> ERROR RESPONSE STATUS: ${responses[0].statusCode} - ${responses[0].body}");
+        debugPrint(">>> ERROR RESPONSE STATUS: ${response.statusCode} - ${response.body}");
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e, stacktrace) {
@@ -431,13 +432,58 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> with SingleTick
                           if (_loansData != null && _loansData!['active_loan'] != null) ...[
                             const Text('Ringkasan Pinjaman Aktif', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
                             const SizedBox(height: 8),
-                            _infoRow('Status Pinjaman Aktif', _loansData!['active_loan']['status']?.toString() ?? 'Aktif', color: AppColors.warning),
-                            _infoRow('Plafon Pinjaman Utama', _formatRupiah(double.tryParse(_loansData!['active_loan']['plafon']?.toString() ?? '0') ?? 0)),
-                            _infoRow('Sisa Pokok Pinjaman', _formatRupiah(double.tryParse(_loansData!['active_loan']['sisa_pokok']?.toString() ?? '0') ?? 0), isBold: true, color: AppColors.danger),
-                            _infoRow('Sisa Bunga / Jasa', _formatRupiah(double.tryParse(_loansData!['active_loan']['sisa_bunga']?.toString() ?? '0') ?? 0)),
-                            _infoRow('Tenor & Sisa Angsuran', '${_loansData!['active_loan']['sisa_bulan'] ?? 0} dari ${_loansData!['active_loan']['total_bulan'] ?? 0} Bulan'),
-                            _infoRow('Angsuran per Bulan', _formatRupiah(double.tryParse(_loansData!['active_loan']['angsuran_bulanan']?.toString() ?? '0') ?? 0)),
-                            _buildKolektibilitasRow(_loansData!['active_loan']['kolektibilitas']?.toString() ?? 'Lancar'),
+                            _infoRow(
+                              'Status Pinjaman Aktif',
+                              _loansData!['active_loan']['status']?.toString() ?? 'Aktif',
+                              color: AppColors.warning,
+                            ),
+                            _infoRow(
+                              'Plafon Pinjaman Utama',
+                              // Backend: plafon_pinjaman — fallback: plafon (key lama)
+                              _formatRupiah(double.tryParse(
+                                (_loansData!['active_loan']['plafon_pinjaman'] ??
+                                 _loansData!['active_loan']['plafon'] ??
+                                 0).toString(),
+                              ) ?? 0),
+                            ),
+                            _infoRow(
+                              'Sisa Pokok Pinjaman',
+                              // Backend: sisa_pokok — cocok dengan key Flutter lama
+                              _formatRupiah(double.tryParse(
+                                (_loansData!['active_loan']['sisa_pokok'] ?? 0).toString(),
+                              ) ?? 0),
+                              isBold: true,
+                              color: AppColors.danger,
+                            ),
+                            _infoRow(
+                              'Sisa Bunga / Jasa',
+                              // Backend tidak mengirim sisa_bunga langsung — tampilkan 0 dengan aman
+                              _formatRupiah(double.tryParse(
+                                (_loansData!['active_loan']['sisa_bunga'] ??
+                                 _loansData!['active_loan']['remaining_interest'] ??
+                                 0).toString(),
+                              ) ?? 0),
+                            ),
+                            _infoRow(
+                              'Tenor Pinjaman',
+                              // Backend: duration_months — fallback: total_bulan
+                              '${_loansData!['active_loan']['duration_months'] ?? _loansData!['active_loan']['total_bulan'] ?? "-"} Bulan',
+                            ),
+                            _infoRow(
+                              'Angsuran per Bulan',
+                              // Backend tidak mengirim angsuran_bulanan — tampilkan 0 dengan aman
+                              _formatRupiah(double.tryParse(
+                                (_loansData!['active_loan']['angsuran_bulanan'] ??
+                                 _loansData!['active_loan']['monthly_installment'] ??
+                                 0).toString(),
+                              ) ?? 0),
+                            ),
+                            // Backend: track_record — fallback: kolektibilitas
+                            _buildKolektibilitasRow(
+                              (_loansData!['active_loan']['track_record'] ??
+                               _loansData!['active_loan']['kolektibilitas'] ??
+                               'Lancar').toString(),
+                            ),
                           ] else ...[
                             _infoRow('Status Pinjaman Aktif', 'Tidak Ada Pinjaman', color: AppColors.success),
                           ],
@@ -448,8 +494,10 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> with SingleTick
 
                           const Text('Riwayat Pinjaman Sebelumnya', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
                           const SizedBox(height: 8),
-                          
-                          if (_loansData != null && _loansData!['loan_history'] != null && (_loansData!['loan_history'] as List).isNotEmpty) ...[
+
+                          if (_loansData != null &&
+                              _loansData!['loan_history'] != null &&
+                              (_loansData!['loan_history'] as List).isNotEmpty) ...[
                             _buildLoanHistoryTable(_loansData!['loan_history'] as List),
                           ] else ...[
                             Container(
@@ -539,7 +587,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> with SingleTick
           2: FlexColumnWidth(2.5),
           3: FlexColumnWidth(2),
         },
-        border: TableBorder.symmetric(inside: BorderSide(color: AppColors.cardBorder.withOpacity(0.5))),
+        border: TableBorder.symmetric(inside: BorderSide(color: AppColors.cardBorder.withValues(alpha: 0.5))),
         children: [
           TableRow(
             decoration: const BoxDecoration(color: AppColors.surface),
@@ -550,14 +598,25 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> with SingleTick
               _tableCell('Status', isHeader: true),
             ],
           ),
-          ...history.map((h) => TableRow(
-            children: [
-              _tableCell(h['kode_pinjaman']?.toString() ?? '-'),
-              _tableCell(h['tanggal_cair']?.toString() ?? '-'),
-              _tableCell(_formatRupiah(double.tryParse(h['plafon']?.toString() ?? '0') ?? 0)),
-              _tableCell(h['status']?.toString() ?? '-', color: h['status'] == 'LUNAS' ? AppColors.success : AppColors.textMuted),
-            ],
-          )).toList(),
+          ...history.map((h) {
+            // Backend: loan_code — fallback: kode_pinjaman (key lama)
+            final kode = (h['loan_code'] ?? h['kode_pinjaman'])?.toString() ?? '-';
+            // Backend: created_at — fallback: tanggal_cair (key lama)
+            final tanggal = (h['created_at'] ?? h['tanggal_cair'])?.toString() ?? '-';
+            // Backend: amount — fallback: plafon (key lama)
+            final plafon = double.tryParse((h['amount'] ?? h['plafon'] ?? 0).toString()) ?? 0;
+            final status = h['status']?.toString() ?? '-';
+            final isLunas = status.toUpperCase() == 'LUNAS' || status.toLowerCase() == 'paid';
+
+            return TableRow(
+              children: [
+                _tableCell(kode),
+                _tableCell(tanggal),
+                _tableCell(_formatRupiah(plafon)),
+                _tableCell(status, color: isLunas ? AppColors.success : AppColors.textMuted),
+              ],
+            );
+          }),
         ],
       ),
     );
