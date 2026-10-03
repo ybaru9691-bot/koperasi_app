@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'constants/app_colors.dart';
-import 'screens/auth/splash_screen.dart';
+import 'screens/auth/welcome_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: AppColors.background,
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: const WelcomeScreen(),
     );
   }
 }
