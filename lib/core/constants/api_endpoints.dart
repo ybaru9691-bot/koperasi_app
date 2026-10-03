@@ -1,7 +1,11 @@
 /// 🌐 Konstanta Terpusat URL & Endpoint API Backend Laravel Sanctum
 abstract class ApiEndpoints {
   // Base URL Server Backend Laravel
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  // Bisa di-override saat build dengan --dart-define=API_BASE_URL=...
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000/api',
+  );
   static const String localBaseUrl = 'http://localhost:8000/api';
 
   // --- AUTH ENDPOINTS ---
@@ -23,3 +27,4 @@ abstract class ApiEndpoints {
   static const String financialReport = '$baseUrl/reports/financial';
   static const String worksheet = '$baseUrl/reports/worksheet';
 }
+
