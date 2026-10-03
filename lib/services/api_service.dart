@@ -69,15 +69,8 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  String get baseUrl {
-    if (kIsWeb) {
-      return ApiEndpoints.localBaseUrl;
-    }
-    if (Platform.isAndroid) {
-      return ApiEndpoints.baseUrl;
-    }
-    return ApiEndpoints.localBaseUrl;
-  }
+  String get baseUrl => ApiEndpoints.baseUrl;
+
   String? _authToken;
 
   void setAuthToken(String token) {

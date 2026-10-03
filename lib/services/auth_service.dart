@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/api_endpoints.dart';
 import '../screens/auth/welcome_screen.dart';
 import 'api_service.dart';
 
@@ -17,16 +18,8 @@ class AuthService {
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  // URL Base API Dinamis (Chrome Web: localhost, Android Emulator: 10.0.2.2, Desktop/iOS: 127.0.0.1)
-  static String get _baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:8000/api';
-    }
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';
-    }
-    return 'http://127.0.0.1:8000/api';
-  }
+  // URL Base API (Production Railway, terpusat di ApiEndpoints)
+  static String get _baseUrl => ApiEndpoints.baseUrl;
 
   static const String _tokenKey = 'access_token';
   static const String _userDataKey = 'user_data';
