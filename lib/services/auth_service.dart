@@ -17,8 +17,13 @@ class AuthService {
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  // URL Base API Dinamis (Chrome Web: localhost, Android Emulator: 10.0.2.2, Desktop/iOS: 127.0.0.1)
+  // URL Base API Dinamis:
+  // Production (Railway Release): https://cumpelitaresortdame.up.railway.app/api
+  // Development (Local): Chrome Web = localhost:8000, Android Emulator = 10.0.2.2, Desktop = 127.0.0.1
   static String get _baseUrl {
+    if (kReleaseMode) {
+      return 'https://cumpelitaresortdame.up.railway.app/api';
+    }
     if (kIsWeb) {
       return 'http://localhost:8000/api';
     }
@@ -128,16 +133,13 @@ class AuthService {
             data != null ? data['access_token'] as String? : null;
 
         if (token != null && token.isNotEmpty) {
-          // Extract User Role ('admin' / 'anggota')
           final dynamic rawRole = data['user']?['role'] ?? data['role'] ?? 'anggota';
           final String userRole = rawRole.toString().trim().toLowerCase();
 
-          // Print Log Role Tersimpan
           // ignore: avoid_print
           print("DEBUG ROLE TERSIMPAN: $userRole");
           debugPrint('[AUTH_LOG] Step 5: Menyimpan Role [$userRole] & Token ke SharedPreferences & SecureStorage...');
 
-          // 1. Simpan ke FlutterSecureStorage
           await _storage.write(key: _tokenKey, value: token);
           await _storage.write(key: _userRoleKey, value: userRole);
 
@@ -148,7 +150,6 @@ class AuthService {
             );
           }
 
-          // 2. Simpan ke SharedPreferences (Syarat Pemisahan Role Dashboard)
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_tokenKey, token);
           await prefs.setString(_userRoleKey, userRole);
@@ -267,7 +268,6 @@ class AuthService {
 
   /// Helper Global untuk Alur Logout Lengkap dengan Indikator Loading & Navigasi
   static Future<void> handleLogout(BuildContext context) async {
-    // 1. Tampilkan Loading Dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -276,7 +276,6 @@ class AuthService {
       ),
     );
 
-    // 2. Hapus Cache & Sesi
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
@@ -288,12 +287,10 @@ class AuthService {
 
     if (!context.mounted) return;
 
-    // 3. Tutup Dialog Loading
     Navigator.of(context, rootNavigator: true).pop();
 
     if (!context.mounted) return;
 
-    // 4. Navigasi ke WelcomeScreen (Hapus seluruh stack route)
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const WelcomeScreen()),
       (route) => false,

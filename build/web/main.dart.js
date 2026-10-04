@@ -35874,7 +35874,7 @@ _.d=d
 _.e=e
 _.f=f},
 afF:function afF(){},
-b3(){return"http://localhost:8000/api"},
+b3(){return"https://cumpelitaresortdame.up.railway.app/api"},
 oo(a){var s=0,r=A.H(t.H),q,p=2,o=[],n,m,l,k,j
 var $async$oo=A.D(function(b,c){if(b===1){o.push(c)
 s=p}for(;;)switch(s){case 0:k=t.z
