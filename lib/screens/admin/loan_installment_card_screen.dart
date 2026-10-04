@@ -1173,7 +1173,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
                                           Navigator.pop(modalContext);
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Angsuran Ke-${nextUnpaid.no} (${proofController.text}) BERHASIL DISIMPAN!'),
+                                              content: Text('Angsuran Ke-${nextUnpaid?.no ?? ''} (${proofController.text}) BERHASIL DISIMPAN!'),
                                               backgroundColor: AppColors.success,
                                               behavior: SnackBarBehavior.floating,
                                             ),

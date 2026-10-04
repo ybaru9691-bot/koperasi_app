@@ -1,25 +1,31 @@
+import 'package:flutter/foundation.dart';
+
 /// 🌐 Konstanta Terpusat URL & Endpoint API Backend Laravel Sanctum
 abstract class ApiEndpoints {
   // Base URL Server Backend Laravel
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
-  static const String localBaseUrl = 'http://localhost:8000/api';
+  // Otomatis pakai Railway jika kReleaseMode (hasil flutter build web --release)
+  // Otomatis pakai Localhost jika sedang di-run/debug biasa
+  static const String productionBaseUrl = 'https://cumpelitaresortdame.up.railway.app/api';
+  static const String localBaseUrl = kIsWeb ? 'http://localhost:8000/api' : 'http://10.0.2.2:8000/api';
+
+  static String get baseUrl => kReleaseMode ? productionBaseUrl : localBaseUrl;
 
   // --- AUTH ENDPOINTS ---
-  static const String login = '$baseUrl/login';
-  static const String logout = '$baseUrl/logout';
-  static const String me = '$baseUrl/me';
+  static String get login => '$baseUrl/login';
+  static String get logout => '$baseUrl/logout';
+  static String get me => '$baseUrl/me';
 
   // --- ANGGOTA ENDPOINTS ---
-  static const String members = '$baseUrl/members';
+  static String get members => '$baseUrl/members';
   static String memberDetail(int id) => '$baseUrl/members/$id';
 
   // --- TRANSAKSI & KAS ENDPOINTS ---
-  static const String transactions = '$baseUrl/transactions';
-  static const String kasKeluar = '$baseUrl/kas-keluar';
-  static const String approvalList = '$baseUrl/approvals';
+  static String get transactions => '$baseUrl/transactions';
+  static String get kasKeluar => '$baseUrl/kas-keluar';
+  static String get approvalList => '$baseUrl/approvals';
 
   // --- KEUANGAN & REPORT ENDPOINTS ---
-  static const String dashboardSummary = '$baseUrl/dashboard/summary';
-  static const String financialReport = '$baseUrl/reports/financial';
-  static const String worksheet = '$baseUrl/reports/worksheet';
+  static String get dashboardSummary => '$baseUrl/dashboard/summary';
+  static String get financialReport => '$baseUrl/reports/financial';
+  static String get worksheet => '$baseUrl/reports/worksheet';
 }
