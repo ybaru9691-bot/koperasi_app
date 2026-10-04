@@ -85,7 +85,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Uri.parse('${AuthService.staticBaseUrl}/dashboard-summary'),
               headers: headers,
             )
-            .timeout(const Duration(seconds: 30));
+            .timeout(const Duration(seconds: 60));
 
         if (summaryResponse.statusCode == 200) {
           final resData = jsonDecode(summaryResponse.body);

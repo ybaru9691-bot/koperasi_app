@@ -198,7 +198,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[UPDATE_PROFILE_LOG] Response: ${response.statusCode} - ${response.body}');
 
@@ -273,7 +273,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[RESET_PIN_LOG] Response Status: ${response.statusCode} - ${response.body}');
 

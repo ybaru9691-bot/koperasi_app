@@ -117,7 +117,7 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
       final response = await http.get(uri, headers: {
         'Accept': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
-      }).timeout(const Duration(seconds: 30));
+      }).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);

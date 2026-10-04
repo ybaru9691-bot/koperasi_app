@@ -76,7 +76,7 @@ class _ApprovalScreenState extends State<ApprovalScreen>
           'Accept': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -131,7 +131,7 @@ class _ApprovalScreenState extends State<ApprovalScreen>
             : jsonEncode({
                 'admin_notes': 'Ditolak dari Persetujuan Admin',
               }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         setState(() {
@@ -205,10 +205,12 @@ class _ApprovalScreenState extends State<ApprovalScreen>
       appBar: AppBar(
         backgroundColor: AppColors.adminNavy,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Colors.white),
-          tooltip: 'Menu Admin',
-          onPressed: widget.onOpenDrawer ?? () => Scaffold.of(context).openDrawer(),
+        leading: Builder(
+          builder: (bCtx) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: Colors.white),
+            tooltip: 'Menu Admin',
+            onPressed: widget.onOpenDrawer ?? () => Scaffold.of(bCtx).openDrawer(),
+          ),
         ),
         title: const Text(
           'Persetujuan Pengajuan',

@@ -82,7 +82,7 @@ class _AdminProfilScreenState extends State<AdminProfilScreen> {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 10));
+        ).timeout(const Duration(seconds: 60));
 
         if (response.statusCode == 200) {
           final dynamic decoded = jsonDecode(response.body);
@@ -459,7 +459,7 @@ class _AdminProfilScreenState extends State<AdminProfilScreen> {
                 }
 
                 final streamedResponse =
-                    await request.send().timeout(const Duration(seconds: 30));
+                    await request.send().timeout(const Duration(seconds: 60));
                 final response = await http.Response.fromStream(streamedResponse);
 
                 debugPrint('[PROFILE_UPDATE] Status: ${response.statusCode}, Body: ${response.body}');

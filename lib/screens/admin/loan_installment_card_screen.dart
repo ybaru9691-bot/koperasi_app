@@ -198,7 +198,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
       final resp = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/loans/dropdown-list'),
         headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);
@@ -213,7 +213,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
       final resp2 = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/admin/loans/dropdown-list'),
         headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp2.statusCode == 200) {
         final body = jsonDecode(resp2.body);
@@ -228,7 +228,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
       final listResp = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=all'),
         headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (listResp.statusCode == 200) {
         final listBody = jsonDecode(listResp.body);
@@ -280,7 +280,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
         final response = await http.get(
           Uri.parse('${AuthService.staticBaseUrl}/loans/$loanToFetch/card'),
           headers: headers,
-        ).timeout(const Duration(seconds: 20));
+        ).timeout(const Duration(seconds: 60));
 
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body);
@@ -478,13 +478,13 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
       var resp = await http.delete(
         Uri.parse('${AuthService.staticBaseUrl}/loans/$loanId'),
         headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 404 || resp.statusCode == 405) {
         resp = await http.delete(
           Uri.parse('${AuthService.staticBaseUrl}/admin/loans/$loanId'),
           headers: headers,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (!mounted) return;
@@ -797,14 +797,14 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
         Uri.parse('${AuthService.staticBaseUrl}/loans/$loanId'),
         headers: headers,
         body: payload,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 404 || resp.statusCode == 405) {
         resp = await http.put(
           Uri.parse('${AuthService.staticBaseUrl}/admin/loans/$loanId'),
           headers: headers,
           body: payload,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (!mounted) return (resp.statusCode == 200 || resp.statusCode == 201);
@@ -1166,7 +1166,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
                                           'payment_method': 'cash',
                                           'notes': 'Pembayaran Angsuran Ke-${nextUnpaid.no}',
                                         }),
-                                      ).timeout(const Duration(seconds: 30));
+                                      ).timeout(const Duration(seconds: 60));
 
                                       if (response.statusCode == 200) {
                                         if (context.mounted) {
@@ -1243,7 +1243,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
           'Accept': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);
@@ -1753,7 +1753,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
                                           'collateral': collateralController.text.trim(),
                                           'notes': notesController.text.trim(),
                                         }),
-                                      ).timeout(const Duration(seconds: 30));
+                                      ).timeout(const Duration(seconds: 60));
 
                                       if (response.statusCode == 200 || response.statusCode == 201) {
                                         final resBody = jsonDecode(response.body);
@@ -1850,10 +1850,12 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.adminNavy,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Colors.white),
-          tooltip: 'Menu Admin',
-          onPressed: widget.onOpenDrawer ?? () => Scaffold.of(context).openDrawer(),
+        leading: Builder(
+          builder: (bCtx) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: Colors.white),
+            tooltip: 'Menu Admin',
+            onPressed: widget.onOpenDrawer ?? () => Scaffold.of(bCtx).openDrawer(),
+          ),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2820,7 +2822,7 @@ class _LoanSearchPickerSheetState extends State<_LoanSearchPickerSheet> {
       final resp = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/loans/dropdown-list'),
         headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);
@@ -3113,7 +3115,7 @@ class _MemberSearchPickerSheetState extends State<_MemberSearchPickerSheet> {
           'Accept': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);

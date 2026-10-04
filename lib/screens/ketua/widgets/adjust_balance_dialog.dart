@@ -68,7 +68,7 @@ class _AdjustBalanceFormDialogState extends State<AdjustBalanceFormDialog> {
       final response = await http.get(uri, headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
-      }).timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

@@ -78,7 +78,7 @@ class _MigrationScreenState extends State<MigrationScreen> {
           'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 45));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         const filename = 'Template_Migrasi_Anggota_CUM_Pelita.xlsx';

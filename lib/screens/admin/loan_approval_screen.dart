@@ -100,13 +100,13 @@ class _LoanApprovalScreenState extends State<LoanApprovalScreen>
       final pendingResponse = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/admin/loans/pending'),
         headers: headers,
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       // 2. Fetch approved/completed loans
       final completedResponse = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=approved'),
         headers: headers,
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       List<LoanApprovalModel> tempLoans = [];
 
@@ -426,7 +426,7 @@ class _LoanApprovalScreenState extends State<LoanApprovalScreen>
                                                   'reason': notesController.text.trim(),
                                                   'notes': notesController.text.trim(),
                                                 }),
-                                              ).timeout(const Duration(seconds: 30));
+                                              ).timeout(const Duration(seconds: 60));
 
                                               if (response.statusCode == 200 || response.statusCode == 201) {
                                                 await _fetchPendingLoans();
@@ -530,7 +530,7 @@ class _LoanApprovalScreenState extends State<LoanApprovalScreen>
                                                   'due_date_day': selectedDueDateDay,
                                                   'admin_notes': notesController.text.trim(),
                                                 }),
-                                              ).timeout(const Duration(seconds: 30));
+                                              ).timeout(const Duration(seconds: 60));
 
                                               if (response.statusCode == 200 || response.statusCode == 201) {
                                                 await _fetchPendingLoans();

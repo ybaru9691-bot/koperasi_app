@@ -119,7 +119,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 404) {
         final fallbackUri = Uri.parse('$baseUrl/manager/reports/executive-summary?month=$_selectedMonth&year=$_selectedYear');
@@ -131,7 +131,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (!mounted) return;
@@ -156,37 +156,41 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
             _hasError = false;
           });
         } else {
+          if (mounted) {
+            setState(() {
+              _hasError = _report == null;
+              _errorMessage = responseData['message'] ?? 'Gagal memuat data laporan.';
+              _isInitialLoading = false;
+              _isChangingPeriod = false;
+            });
+            if (_report != null) {
+              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                SnackBar(
+                  content: Text(_errorMessage ?? 'Gagal memuat data'),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        }
+      } else {
+        if (mounted) {
           setState(() {
             _hasError = _report == null;
-            _errorMessage = responseData['message'] ?? 'Gagal memuat data laporan.';
+            _errorMessage = 'Gagal memuat data (Status ${response.statusCode})';
             _isInitialLoading = false;
             _isChangingPeriod = false;
           });
           if (_report != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
               SnackBar(
-                content: Text(_errorMessage ?? 'Gagal memuat data'),
+                content: Text('Gagal memuat data (Status ${response.statusCode})'),
                 backgroundColor: Colors.red,
                 behavior: SnackBarBehavior.floating,
               ),
             );
           }
-        }
-      } else {
-        setState(() {
-          _hasError = _report == null;
-          _errorMessage = 'Gagal memuat data (Status ${response.statusCode})';
-          _isInitialLoading = false;
-          _isChangingPeriod = false;
-        });
-        if (_report != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal memuat data (Status ${response.statusCode})'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
         }
       }
     } catch (e) {
@@ -198,7 +202,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
           _isChangingPeriod = false;
         });
         if (_report != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
             SnackBar(
               content: Text('Error: $e'),
               backgroundColor: Colors.red,
@@ -242,7 +246,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 404) {
         final fallbackUri = Uri.parse('$baseUrl/manager/trigger-monthly-interest/preview?month=$_selectedMonth&year=$_selectedYear');
@@ -254,7 +258,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 30));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (!mounted) return;
@@ -582,7 +586,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
           'month': _selectedMonth,
           'year': _selectedYear,
         }),
-      ).timeout(const Duration(seconds: 45));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 404) {
         final fallbackUri = Uri.parse('$baseUrl/manager/trigger-monthly-interest');
@@ -598,7 +602,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
             'month': _selectedMonth,
             'year': _selectedYear,
           }),
-        ).timeout(const Duration(seconds: 45));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (!mounted) return;
@@ -824,7 +828,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
           'percentage': newPercentage,
           'shu_percentage': newPercentage,
         }),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -1000,7 +1004,7 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
                                   'net_income': parsedProfit ?? 0.0,
                                   'dividend_allocation_percent': parsedPct,
                                 }),
-                              ).timeout(const Duration(seconds: 10));
+                              ).timeout(const Duration(seconds: 60));
 
                               await _updateShuPercentage(parsedPct);
                             }

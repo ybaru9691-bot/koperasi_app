@@ -21,7 +21,7 @@ class BackupService {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 6));
+        ).timeout(const Duration(seconds: 60));
 
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body);
@@ -49,7 +49,7 @@ class BackupService {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           return jsonDecode(response.body);
@@ -92,7 +92,7 @@ class BackupService {
             'filename': filename,
             'password': confirmPassword,
           }),
-        ).timeout(const Duration(seconds: 20));
+        ).timeout(const Duration(seconds: 60));
 
         if (response.statusCode == 200) {
           return jsonDecode(response.body);

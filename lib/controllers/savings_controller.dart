@@ -198,7 +198,7 @@ class SavingsController extends ChangeNotifier {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[SAVINGS_LOG] Response status: ${response.statusCode}');
       debugPrint('[SAVINGS_LOG] Response body: ${response.body}');

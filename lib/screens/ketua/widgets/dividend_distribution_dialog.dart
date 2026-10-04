@@ -114,7 +114,7 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -337,7 +337,7 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
           'voucher_no': voucherNo,
           'notes': _notesController.text.trim(),
         }),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 

@@ -242,7 +242,7 @@ class _InitialBalanceScreenState extends State<InitialBalanceScreen> {
           'Accept': 'application/json',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -391,7 +391,7 @@ class _InitialBalanceScreenState extends State<InitialBalanceScreen> {
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 

@@ -283,7 +283,7 @@ class _MemberDetailDialogState extends State<MemberDetailDialog> with SingleTick
       // (endpoint /loans tidak terdaftar di backend, mengembalikan 404)
       final detailUri = Uri.parse('${AuthService.staticBaseUrl}/manager/members/${widget.member.id}/detail');
 
-      final response = await http.get(detailUri, headers: headers).timeout(const Duration(seconds: 10));
+      final response = await http.get(detailUri, headers: headers).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);

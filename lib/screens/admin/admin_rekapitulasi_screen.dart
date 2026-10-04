@@ -153,7 +153,7 @@ class _AdminRekapitulasiScreenState extends State<AdminRekapitulasiScreen> {
       };
 
       final uri = Uri.parse('${AuthService.staticBaseUrl}/loans/transactions-history?per_page=100');
-      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 25));
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -162,7 +162,7 @@ class _AdminRekapitulasiScreenState extends State<AdminRekapitulasiScreen> {
 
       // Fallback: /admin/loans/transactions-history
       final uri2 = Uri.parse('${AuthService.staticBaseUrl}/admin/loans/transactions-history?per_page=100');
-      final response2 = await http.get(uri2, headers: headers).timeout(const Duration(seconds: 25));
+      final response2 = await http.get(uri2, headers: headers).timeout(const Duration(seconds: 60));
       if (response2.statusCode == 200) {
         final body = jsonDecode(response2.body);
         return _parseResponse(body);

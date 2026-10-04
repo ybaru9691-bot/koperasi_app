@@ -58,7 +58,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
       final response = await http.get(
         Uri.parse('$_baseUrl/announcements'),
         headers: _headers(token),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -108,7 +108,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
         Uri.parse('$_baseUrl/announcements'),
         headers: _headers(token),
         body: jsonEncode({'title': title, 'content': content, 'category': category}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
       final body = jsonDecode(response.body);
@@ -138,7 +138,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
         Uri.parse('$_baseUrl/announcements/$id'),
         headers: _headers(token),
         body: jsonEncode({'title': title, 'content': content, 'category': category}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
       final body = jsonDecode(response.body);
@@ -167,7 +167,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
       final response = await http.delete(
         Uri.parse('$_baseUrl/announcements/$id'),
         headers: _headers(token),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
       final body = jsonDecode(response.body);
@@ -363,7 +363,7 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
 
   void _showSnack(String msg, {bool success = false, bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       SnackBar(
         content: Text(msg),
         backgroundColor: isError ? AppColors.danger : (success ? AppColors.success : null),

@@ -105,7 +105,7 @@ class _LoanApplicationSheetState extends State<LoanApplicationSheet> {
           'purpose': purposeText,
           'collateral': collateralText,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 

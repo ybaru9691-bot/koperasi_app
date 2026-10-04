@@ -66,13 +66,13 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       var resp = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}/details'),
         headers: headers,
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 404) {
         resp = await http.get(
           Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}'),
           headers: headers,
-        ).timeout(const Duration(seconds: 30));
+        ).timeout(const Duration(seconds: 60));
       }
 
       debugPrint('[DETAIL_LOG] ${resp.statusCode} – ${resp.body.substring(0, resp.body.length.clamp(0, 300))}');
@@ -86,13 +86,13 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           var bpResp = await http.get(
             Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}/buku-putih-ledger'),
             headers: headers,
-          ).timeout(const Duration(seconds: 15));
+          ).timeout(const Duration(seconds: 60));
 
           if (bpResp.statusCode == 404) {
             bpResp = await http.get(
               Uri.parse('${AuthService.staticBaseUrl}/manager/members/${widget.member.id}/buku-putih-ledger'),
               headers: headers,
-            ).timeout(const Duration(seconds: 15));
+            ).timeout(const Duration(seconds: 60));
           }
 
           if (bpResp.statusCode == 200) {
@@ -495,7 +495,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                               body: jsonEncode({
                                 'voucher_no': 'KK $cleanNo',
                               }),
-                            ).timeout(const Duration(seconds: 30));
+                            ).timeout(const Duration(seconds: 60));
 
                             Map<String, dynamic> resData = {};
                             try {
@@ -784,7 +784,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                               body: jsonEncode({
                                 'voucher_no': 'KK $cleanNo',
                               }),
-                            ).timeout(const Duration(seconds: 30));
+                            ).timeout(const Duration(seconds: 60));
 
                             Map<String, dynamic> resData = {};
                             try {
@@ -1255,14 +1255,14 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
         Uri.parse('${AuthService.staticBaseUrl}/buku-putih/members/${m.id}/toggle-status'),
         headers: headers,
         body: payload,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 404 || resp.statusCode == 405) {
         resp = await http.patch(
           Uri.parse('${AuthService.staticBaseUrl}/members/${m.id}/toggle-status'),
           headers: headers,
           body: payload,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (resp.statusCode == 404 || resp.statusCode == 405) {
@@ -1270,7 +1270,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           Uri.parse('${AuthService.staticBaseUrl}/members/${m.id}/status'),
           headers: headers,
           body: payload,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (resp.statusCode == 404 || resp.statusCode == 405) {
@@ -1278,7 +1278,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           Uri.parse('${AuthService.staticBaseUrl}/members/${m.id}'),
           headers: headers,
           body: payload,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (resp.statusCode == 405) {
@@ -1286,7 +1286,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           Uri.parse('${AuthService.staticBaseUrl}/buku-putih/members/${m.id}/toggle-status'),
           headers: headers,
           body: payload,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (resp.statusCode == 200 || resp.statusCode == 204) {

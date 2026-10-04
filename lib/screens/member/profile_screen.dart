@@ -69,7 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[PROFILE_LOG] Response status code: ${response.statusCode}');
 

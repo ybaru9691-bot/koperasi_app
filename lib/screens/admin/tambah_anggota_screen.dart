@@ -256,8 +256,8 @@ class _TambahAnggotaScreenState extends State<TambahAnggotaScreen> {
         },
         body: jsonEncode(payload),
       ).timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw Exception('Request Timeout — server tidak merespons dalam 15 detik.'),
+        const Duration(seconds: 60),
+        onTimeout: () => throw Exception('Request Timeout — server tidak merespons dalam 60 detik.'),
       );
 
       // LOG FASE 3: Response dari server 

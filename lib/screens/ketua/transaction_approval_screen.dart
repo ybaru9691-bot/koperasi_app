@@ -282,7 +282,7 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                       'Accept': 'application/json',
                       if (token != null) 'Authorization': 'Bearer $token',
                     },
-                  ).timeout(const Duration(seconds: 15));
+                  ).timeout(const Duration(seconds: 60));
 
                   if (res.statusCode == 200 || res.statusCode == 201) {
                     if (!mounted) return;
@@ -389,7 +389,7 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                   'rejection_reason': reason,
                   'notes': reason,
                 }),
-              ).timeout(const Duration(seconds: 15));
+              ).timeout(const Duration(seconds: 60));
 
               if (res.statusCode == 200 || res.statusCode == 201) {
                 if (!mounted) return;

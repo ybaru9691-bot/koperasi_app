@@ -134,17 +134,17 @@ class _HomeScreenState extends State<HomeScreen> {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
-        }).timeout(const Duration(seconds: 10)),
+        }).timeout(const Duration(seconds: 60)),
         http.get(annUri, headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
-        }).timeout(const Duration(seconds: 10)),
+        }).timeout(const Duration(seconds: 60)),
         http.get(loanUri, headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
-        }).timeout(const Duration(seconds: 10)),
+        }).timeout(const Duration(seconds: 60)),
       ]);
 
       final response = responses[0];

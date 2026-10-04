@@ -124,7 +124,7 @@ class _InputTransaksiScreenState extends State<InputTransaksiScreen>
           'Accept': 'application/json',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
       
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -169,7 +169,7 @@ class _InputTransaksiScreenState extends State<InputTransaksiScreen>
           'Accept': 'application/json',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[TRANSAKSI_MEMBER_LOG] Status Code: ${response.statusCode}');
 
@@ -274,7 +274,7 @@ class _InputTransaksiScreenState extends State<InputTransaksiScreen>
           'Accept': 'application/json',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[TRANSAKSI_LOG] Status Code: ${response.statusCode}');
 
@@ -805,7 +805,7 @@ class _InputTransaksiScreenState extends State<InputTransaksiScreen>
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[TRANSAKSI_POST_LOG] Bulk POST Code: ${response.statusCode}');
       debugPrint('[TRANSAKSI_POST_LOG] Bulk POST Body: ${response.body}');

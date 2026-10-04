@@ -168,7 +168,7 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -228,7 +228,7 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
 
       if (token == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
             const SnackBar(content: Text('Sesi tidak ditemukan. Silakan login kembali.'))
           );
         }
@@ -252,36 +252,42 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
           'status': status == 'approved' ? 'approved' : 'rejected',
           'description': status == 'approved' ? 'Disetujui oleh Ketua Koperasi' : 'Ditolak oleh Ketua Koperasi',
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         if (responseData['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(status == 'approved'
-                  ? 'Pengajuan berhasil disetujui'
-                  : 'Pengajuan telah ditolak'),
-              backgroundColor: status == 'approved' ? AppColors.success : AppColors.danger,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              SnackBar(
+                content: Text(status == 'approved'
+                    ? 'Pengajuan berhasil disetujui'
+                    : 'Pengajuan telah ditolak'),
+                backgroundColor: status == 'approved' ? AppColors.success : AppColors.danger,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
           _fetchDashboardSummary();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(responseData['message'] ?? 'Gagal memperbarui status.'))
-          );
+          if (mounted) {
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              SnackBar(content: Text(responseData['message'] ?? 'Gagal memperbarui status.'))
+            );
+          }
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error server (Status ${response.statusCode})'))
-        );
+        if (mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text('Error server (Status ${response.statusCode})'))
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           SnackBar(content: Text('Error: $e'))
         );
       }
@@ -328,20 +334,40 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
       _isRefreshing = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            SizedBox(width: 8),
-            Text('Data berhasil diperbarui.'),
-          ],
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+
+    if (!_hasError) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Data berhasil diperbarui.'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
         ),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
-      ),
-    );
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(_errorMessage ?? 'Gagal memperbarui data.')),
+            ],
+          ),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   Future<void> _showAdjustBalanceDialog(bool isExpense) async {
@@ -1090,6 +1116,12 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
     );
   }
 
+  void _closeDrawerIfOpen() {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
+    }
+  }
+
   /// 🚪 Sidebar Drawer khusus Ketua
   Widget _buildKetuaDrawer(BuildContext context) {
     return Drawer(
@@ -1143,39 +1175,39 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
               children: [
                 _drawerMenuItem(Icons.dashboard_rounded, 'Beranda', _selectedNavIndex == 0, () {
                   setState(() => _selectedNavIndex = 0);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
                 _drawerMenuItem(Icons.assessment_rounded, 'Ringkasan Laporan', _selectedNavIndex == 1, () {
                   setState(() => _selectedNavIndex = 1);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
                 _drawerMenuItem(Icons.rule_rounded, 'Persetujuan ACC (4)', _selectedNavIndex == 2, () {
                   setState(() => _selectedNavIndex = 2);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
                 _drawerMenuItem(Icons.people_alt_rounded, 'Data Anggota', _selectedNavIndex == 3, () {
                   setState(() => _selectedNavIndex = 3);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
                 _drawerMenuItem(Icons.campaign_outlined, 'Pengumuman & Berita', _selectedNavIndex == 4, () {
                   setState(() => _selectedNavIndex = 4);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
                 // _drawerMenuItem(Icons.settings_rounded, 'Pengaturan Sistem', _selectedNavIndex == 5, () {
                 //   setState(() => _selectedNavIndex = 5);
-                //   if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                //   _closeDrawerIfOpen();
                 // }),
                 _drawerMenuItem(Icons.lock_clock_rounded, 'Manajemen Periode', _selectedNavIndex == 6, () {
                   setState(() => _selectedNavIndex = 6);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
                 _drawerMenuItem(Icons.bar_chart_rounded, 'Parameter SHU Koperasi', _selectedNavIndex == 9, () {
                   setState(() => _selectedNavIndex = 9);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
                 _drawerMenuItem(Icons.pie_chart_rounded, 'Distribusi SHU & Deviden', _selectedNavIndex == 10, () {
                   setState(() => _selectedNavIndex = 10);
-                  if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+                  _closeDrawerIfOpen();
                 }),
               ],
             ),

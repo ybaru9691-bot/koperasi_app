@@ -126,7 +126,7 @@ class AuthService {
               'password': cleanPin,
             }),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 60));
 
       debugPrint('[AUTH_LOG] Step 3: Respon HTTP Diterima dari Backend');
       debugPrint('[AUTH_LOG] Status Code : ${response.statusCode}');

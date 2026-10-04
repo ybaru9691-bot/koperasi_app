@@ -182,7 +182,7 @@ class _EditTransactionDialogState extends State<EditTransactionDialog> {
           'pos_name': newDesc,
           'transaction_date': newDateStr,
         }),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 

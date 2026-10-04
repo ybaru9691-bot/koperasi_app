@@ -323,14 +323,14 @@ class _AdminWorksheetScreenState extends State<AdminWorksheetScreen> {
         response = await http.get(uri, headers: {
           'Accept': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
-        }).timeout(const Duration(seconds: 30));
+        }).timeout(const Duration(seconds: 60));
       } catch (_) {
         // Fallback ke endpoint /reports/trial-balance
         final fallbackUri = Uri.parse('${AuthService.staticBaseUrl}/reports/trial-balance$queryParams');
         response = await http.get(fallbackUri, headers: {
           'Accept': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
-        }).timeout(const Duration(seconds: 30));
+        }).timeout(const Duration(seconds: 60));
       }
 
       if (response.statusCode == 200) {

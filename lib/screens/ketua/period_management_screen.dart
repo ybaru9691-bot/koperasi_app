@@ -66,7 +66,7 @@ class _PeriodManagementScreenState extends State<PeriodManagementScreen> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -231,7 +231,7 @@ class _PeriodManagementScreenState extends State<PeriodManagementScreen> {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -321,7 +321,7 @@ class _PeriodManagementScreenState extends State<PeriodManagementScreen> {
         body: jsonEncode({
           'period_id': _activePeriod?.id,
         }),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -415,7 +415,7 @@ class _PeriodManagementScreenState extends State<PeriodManagementScreen> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 
@@ -482,7 +482,7 @@ class _PeriodManagementScreenState extends State<PeriodManagementScreen> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 

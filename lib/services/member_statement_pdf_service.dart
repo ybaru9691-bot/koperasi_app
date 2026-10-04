@@ -106,7 +106,7 @@ class MemberStatementPdfService {
         'Accept': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
       },
-    ).timeout(const Duration(seconds: 25));
+    ).timeout(const Duration(seconds: 60));
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
@@ -166,7 +166,7 @@ class MemberStatementPdfService {
         'Accept': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
       },
-    ).timeout(const Duration(seconds: 25));
+    ).timeout(const Duration(seconds: 60));
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);

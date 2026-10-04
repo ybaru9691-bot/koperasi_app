@@ -76,7 +76,7 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
           'Accept': 'application/json',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       debugPrint('[MEMBER_FETCH_LOG] Status Code: ${response.statusCode}');
 
@@ -185,7 +185,7 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
           'Accept': 'application/json',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (!mounted) return;
 

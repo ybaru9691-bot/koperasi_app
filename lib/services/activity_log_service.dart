@@ -38,7 +38,7 @@ class ActivityLogService {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 6));
+        ).timeout(const Duration(seconds: 60));
 
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body);

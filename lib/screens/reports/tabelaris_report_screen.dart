@@ -126,7 +126,7 @@ class _TabelarisReportScreenState extends State<TabelarisReportScreen> {
           'Accept': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token'
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 60));
 
       if (resp.statusCode == 200) {
         final decoded = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -202,7 +202,7 @@ class _TabelarisReportScreenState extends State<TabelarisReportScreen> {
           'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 45));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final filename = 'Jurnal_Tabelaris_${_periodLabel.replaceAll(' ', '_')}.xlsx';
@@ -261,7 +261,7 @@ class _TabelarisReportScreenState extends State<TabelarisReportScreen> {
           'Accept': 'application/pdf, application/octet-stream',
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 45));
+      ).timeout(const Duration(seconds: 60));
 
       // Fallback jika endpoint belum menggunakan v1 prefix
       if (response.statusCode == 404) {
@@ -273,7 +273,7 @@ class _TabelarisReportScreenState extends State<TabelarisReportScreen> {
             'Accept': 'application/pdf, application/octet-stream',
             if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 45));
+        ).timeout(const Duration(seconds: 60));
       }
 
       if (response.statusCode == 200) {

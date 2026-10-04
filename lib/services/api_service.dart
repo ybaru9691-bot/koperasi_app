@@ -99,12 +99,12 @@ class ApiService {
   }) async {
     try {
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 30);
+      client.connectionTimeout = const Duration(seconds: 60);
       final request = await client.getUrl(Uri.parse('$baseUrl$endpoint'));
       _headers.forEach((key, value) => request.headers.set(key, value));
 
       final response =
-          await request.close().timeout(const Duration(seconds: 30));
+          await request.close().timeout(const Duration(seconds: 60));
       final responseBody = await response.transform(utf8.decoder).join();
       final jsonMap = jsonDecode(responseBody) as Map<String, dynamic>;
 
@@ -141,13 +141,13 @@ class ApiService {
   }) async {
     try {
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 30);
+      client.connectionTimeout = const Duration(seconds: 60);
       final request = await client.postUrl(Uri.parse('$baseUrl$endpoint'));
       _headers.forEach((key, value) => request.headers.set(key, value));
       request.write(jsonEncode(body));
 
       final response =
-          await request.close().timeout(const Duration(seconds: 30));
+          await request.close().timeout(const Duration(seconds: 60));
       final responseBody = await response.transform(utf8.decoder).join();
       final jsonMap = jsonDecode(responseBody) as Map<String, dynamic>;
 

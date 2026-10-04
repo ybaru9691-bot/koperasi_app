@@ -277,7 +277,7 @@ class _LoanScreenState extends State<LoanScreen> {
       final response = await http.get(
         Uri.parse('${AuthService.staticBaseUrl}/user/loans'),
         headers: headers,
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -2020,7 +2020,7 @@ class _LoanScreenState extends State<LoanScreen> {
                                         'purpose': purposeText,
                                         'collateral': collateralText,
                                       }),
-                                    ).timeout(const Duration(seconds: 15));
+                                    ).timeout(const Duration(seconds: 60));
 
                                     if (response.statusCode == 200 || response.statusCode == 201) {
                                       if (context.mounted) {
