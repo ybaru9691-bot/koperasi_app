@@ -20,19 +20,28 @@ class AuthService {
   // URL Base API Dinamis:
   // Production (Railway Release): https://cumpelitaresortdame.up.railway.app/api
   // Development (Local): Chrome Web = localhost:8000, Android Emulator = 10.0.2.2, Desktop = 127.0.0.1
+ 
   static String get _baseUrl {
-    if (kReleaseMode) {
-      return 'https://cumpelitaresortdame.up.railway.app/api';
-    }
+    // 1. Jika diakses via Web Browser
     if (kIsWeb) {
+      // Cek apakah web dibuka di railway / production
+      if (Uri.base.host.contains('railway.app') || kReleaseMode) {
+        return 'https://cumpelitaresortdame.up.railway.app/api';
+      }
+      // Jika di localhost web (saat ngoding lokal di Chrome)
       return 'http://localhost:8000/api';
     }
+
+    // 2. Jika di HP Android / Emulator
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';
+      return kReleaseMode 
+          ? 'https://cumpelitaresortdame.up.railway.app/api'
+          : 'http://10.0.2.2:8000/api';
     }
+
+    // 3. Fallback Desktop
     return 'http://127.0.0.1:8000/api';
   }
-
   static const String _tokenKey = 'access_token';
   static const String _userDataKey = 'user_data';
   static const String _userRoleKey = 'user_role';
