@@ -62,17 +62,38 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
         if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
 
-      // Coba endpoint /details dulu, fallback ke /members/{id}
-      var resp = await http.get(
-        Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}/details'),
-        headers: headers,
-      ).timeout(const Duration(seconds: 60));
+      final detailsUri = Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}/details');
+      final ledgerUri = Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}/buku-putih-ledger');
 
+      // Jalankan paralel via Future.wait
+      final responses = await Future.wait([
+        http.get(detailsUri, headers: headers).timeout(const Duration(seconds: 60)),
+        http.get(ledgerUri, headers: headers).timeout(const Duration(seconds: 60)).catchError((e) {
+          debugPrint('[DETAIL_LOG] Error fetching buku-putih-ledger: $e');
+          return http.Response('{"error": "$e"}', 500);
+        }),
+      ]);
+
+      var resp = responses[0];
+      var bpResp = responses[1];
+
+      // Fallback 404 tetap dipertahankan
       if (resp.statusCode == 404) {
         resp = await http.get(
           Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}'),
           headers: headers,
         ).timeout(const Duration(seconds: 60));
+      }
+
+      if (bpResp.statusCode == 404) {
+        try {
+          bpResp = await http.get(
+            Uri.parse('${AuthService.staticBaseUrl}/manager/members/${widget.member.id}/buku-putih-ledger'),
+            headers: headers,
+          ).timeout(const Duration(seconds: 60));
+        } catch (e) {
+          debugPrint('[DETAIL_LOG] Error fallback buku-putih-ledger: $e');
+        }
       }
 
       debugPrint('[DETAIL_LOG] ${resp.statusCode} – ${resp.body.substring(0, resp.body.length.clamp(0, 300))}');
@@ -81,28 +102,16 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
         final body = jsonDecode(resp.body);
         final Map<String, dynamic> data = body['data'] ?? body['member'] ?? body;
 
-        // Fetch statement lengkap Buku Putih langsung dari BukuPutihLedgerService endpoint
-        try {
-          var bpResp = await http.get(
-            Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}/buku-putih-ledger'),
-            headers: headers,
-          ).timeout(const Duration(seconds: 60));
-
-          if (bpResp.statusCode == 404) {
-            bpResp = await http.get(
-              Uri.parse('${AuthService.staticBaseUrl}/manager/members/${widget.member.id}/buku-putih-ledger'),
-              headers: headers,
-            ).timeout(const Duration(seconds: 60));
-          }
-
-          if (bpResp.statusCode == 200) {
+        // Populate statement lengkap Buku Putih jika response status 200
+        if (bpResp.statusCode == 200) {
+          try {
             final bpBody = jsonDecode(bpResp.body);
             if (bpBody['data'] is Map) {
               data['buku_putih_ledger'] = Map<String, dynamic>.from(bpBody['data']);
             }
+          } catch (e) {
+            debugPrint('[DETAIL_LOG] Error parsing buku-putih-ledger: $e');
           }
-        } catch (e) {
-          debugPrint('[DETAIL_LOG] Error fetching buku-putih-ledger: $e');
         }
 
         final parsed = MemberModel.fromJson(data);
