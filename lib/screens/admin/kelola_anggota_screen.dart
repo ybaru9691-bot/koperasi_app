@@ -54,8 +54,8 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
     super.dispose();
   }
 
-  /// 🌐 1. FETCH DATA ANGGOTA REALTIME (GET /api/members)
-  Future<void> fetchMembers() async {
+  /// 🌐 1. FETCH DATA ANGGOTA REALTIME (GET /api/members?search={query}&page=1)
+  Future<void> fetchMembers({String? search, int page = 1}) async {
     if (!mounted) return;
 
     setState(() {
@@ -65,7 +65,21 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
 
     try {
       final token = await AuthService().getToken();
-      final uri = Uri.parse('${AuthService.staticBaseUrl}/members');
+      final String query = (search ?? _searchQuery).trim();
+
+      // Bangun URI: jika search query ada, panggil /members?search={query}&page=1
+      // Jika kosong, panggil /members normal tanpa query search
+      final Uri uri;
+      if (query.isNotEmpty) {
+        uri = Uri.parse('${AuthService.staticBaseUrl}/members').replace(
+          queryParameters: {
+            'search': query,
+            'page': page.toString(),
+          },
+        );
+      } else {
+        uri = Uri.parse('${AuthService.staticBaseUrl}/members');
+      }
 
       debugPrint('[MEMBER_FETCH_LOG] GET Request ke: $uri');
 
@@ -105,6 +119,7 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
         if (mounted) {
           setState(() {
             _membersList = parsedList;
+            _displayedItemCount = parsedList.length > 20 ? parsedList.length : 20;
             _isLoading = false;
           });
         }
@@ -259,35 +274,32 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
     });
   }
 
-  /// 🔍 SEARCH WITH 400MS DEBOUNCE
+  /// 🔍 SEARCH WITH 400MS DEBOUNCE LANGSUNG KE API BACKEND
   void _onSearchChanged(String query) {
+    final cleanQuery = query.trim();
     _searchDebounceTimer?.cancel();
+
+    setState(() {
+      _searchQuery = cleanQuery;
+    });
+
+    if (cleanQuery.isEmpty) {
+      // Saat kolom pencarian dihapus (kosong), panggil kembali API normal tanpa query search
+      fetchMembers(search: '');
+      return;
+    }
+
+    // Pasang debounce 400ms sebelum memanggil API backend (GET /api/members?search={query}&page=1)
     _searchDebounceTimer = Timer(const Duration(milliseconds: 400), () {
       if (mounted) {
-        setState(() {
-          _searchQuery = query.trim();
-          _displayedItemCount = 20;
-        });
+        fetchMembers(search: cleanQuery, page: 1);
       }
     });
   }
 
   /// 📊 LIST ANGGOTA TERFILTER & TERURUT
   List<MemberModel> get _filteredMembers {
-    List<MemberModel> list = _membersList.where((m) {
-      final q = _searchQuery.toLowerCase().trim();
-      if (q.isEmpty) return true;
-
-      final nameMatch = m.name.toLowerCase().contains(q);
-      final nikMatch = m.nik.toLowerCase().contains(q);
-      final noMatch = m.memberNo.toLowerCase().contains(q) || m.memberNo.padLeft(4, '0').contains(q);
-      final churchMatch = m.church.toLowerCase().contains(q);
-      final bp = m.bukuPutihNumber.toLowerCase().trim();
-      final bukuPutihMatch = bp.isNotEmpty && bp != '-' && bp != 'null' &&
-          (bp.contains(q) || (bp.startsWith('2021-') && bp.replaceFirst('2021-', '').contains(q)));
-
-      return nameMatch || nikMatch || noMatch || churchMatch || bukuPutihMatch;
-    }).toList();
+    List<MemberModel> list = List<MemberModel>.from(_membersList);
 
     if (_sortOrder == 'number_asc') {
       list.sort((a, b) => a.memberNo.compareTo(b.memberNo));

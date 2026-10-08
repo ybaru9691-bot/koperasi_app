@@ -238,7 +238,8 @@ class MemberFinancialSummaryModel {
 
     double parseVal(dynamic value) {
       if (value == null) return 0.0;
-      return double.tryParse(value.toString()) ?? 0.0;
+      if (value is num) return value.toDouble();
+      return num.tryParse(value.toString().replaceAll(',', '').trim())?.toDouble() ?? 0.0;
     }
 
     return MemberFinancialSummaryModel(

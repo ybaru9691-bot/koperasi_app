@@ -94,13 +94,13 @@ class MemberModel {
   // HELPERS PARSIG BULLETPROOF (aman dari null / wrong-type)
   // ────────────────────────────────────────────────────────────
 
-  /// Konversi apa pun → int tanpa melempar exception
+  /// Konversi apa pun → int tanpa melempar exception, aman terhadap string desimal/angka
   static int _parseInt(dynamic v, [int fallback = 0]) {
     if (v == null) return fallback;
     if (v is int) return v;
-    if (v is double) return v.toInt();
     if (v is num) return v.toInt();
-    return int.tryParse(v.toString().trim()) ?? fallback;
+    final cleanStr = v.toString().trim().replaceAll(',', '');
+    return num.tryParse(cleanStr)?.toInt() ?? int.tryParse(cleanStr) ?? fallback;
   }
 
   /// Konversi apa pun → String tanpa melempar exception

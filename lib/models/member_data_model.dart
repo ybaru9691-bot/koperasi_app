@@ -58,8 +58,12 @@ class MemberDataModel {
       phone: json['phone'] ?? json['no_hp'] ?? '',
       address: json['address'] ?? json['alamat'] ?? '',
       joinedDate: json['joinedDate'] ?? json['created_at'] ?? '',
-      totalSavings: (json['totalSavings'] as num?)?.toDouble() ?? 0.0,
-      totalLoans: (json['totalLoans'] as num?)?.toDouble() ?? 0.0,
+      totalSavings: (json['totalSavings'] is num)
+          ? (json['totalSavings'] as num).toDouble()
+          : (num.tryParse(json['totalSavings']?.toString().replaceAll(',', '').trim() ?? '')?.toDouble() ?? 0.0),
+      totalLoans: (json['totalLoans'] is num)
+          ? (json['totalLoans'] as num).toDouble()
+          : (num.tryParse(json['totalLoans']?.toString().replaceAll(',', '').trim() ?? '')?.toDouble() ?? 0.0),
       status: json['status'] ?? 'aktif',
       hasBukuBiru: hasBiru,
       bukuPutihNumber: bp,
