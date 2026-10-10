@@ -455,13 +455,15 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
                             return MemberCard(
                               member: member,
                               onEditPressed: () async {
-                                await Navigator.push(
+                                final result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => EditAnggotaScreen(member: member),
                                   ),
                                 );
-                                fetchMembers();
+                                if (result == true) {
+                                  fetchMembers();
+                                }
                               },
                               onDeletePressed: () => _handleDeleteMember(member),
                               onTap: () {
@@ -489,7 +491,7 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
             MaterialPageRoute(builder: (context) => const TambahAnggotaScreen()),
           );
           // Panggil ulang fetchMembers() secara otomatis jika sukses
-          if (result == true || result == null) {
+          if (result == true) {
             fetchMembers();
           }
         },

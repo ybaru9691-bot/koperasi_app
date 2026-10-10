@@ -311,7 +311,6 @@ class _TambahAnggotaScreenState extends State<TambahAnggotaScreen> {
       }
 
       // HANDLE ERROR — Parse body Laravel secara detail
-      setState(() => _isLoading = false);
       if (!mounted) return;
 
       final String errorTitle;
@@ -457,9 +456,9 @@ class _TambahAnggotaScreenState extends State<TambahAnggotaScreen> {
         ),
       );
 
-    } on Exception catch (e) {
-      //Exception: koneksi gagal / timeout 
-      developer.log('Exception: $e', name: 'MEMBER_POST', level: 1000, error: e);
+    } catch (e) {
+      // Exception/Error: koneksi gagal / timeout / runtime error
+      developer.log('Exception/Error: $e', name: 'MEMBER_POST', level: 1000, error: e);
       // ignore: avoid_print
       print('╔══ [MEMBER_POST] EXCEPTION ══╗');
       // ignore: avoid_print
@@ -468,7 +467,6 @@ class _TambahAnggotaScreenState extends State<TambahAnggotaScreen> {
       print('╚══════════════════════════╝');
 
       if (!mounted) return;
-      setState(() => _isLoading = false);
 
       final isTimeout = e.toString().contains('Timeout') ||
           e.toString().contains('TimeoutException');
@@ -523,6 +521,10 @@ class _TambahAnggotaScreenState extends State<TambahAnggotaScreen> {
           ],
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

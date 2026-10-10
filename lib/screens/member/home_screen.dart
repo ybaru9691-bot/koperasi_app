@@ -419,17 +419,14 @@ String displayTitle = item['title']?.toString() ?? item['description']?.toString
                 ),
               );
             },
-            child: KeyedSubtree(
-              key: ValueKey<int>(_currentBottomNavIndex),
-              child: IndexedStack(
-                index: _currentBottomNavIndex,
-                children: [
-                  _buildHomeTabContent(),
-                  const SavingsScreen(),
-                  const LoanScreen(),
-                  const ProfileScreen(),
-                ],
-              ),
+            child: IndexedStack(
+              index: _currentBottomNavIndex,
+              children: [
+                _buildHomeTabContent(),
+                const SavingsScreen(),
+                const LoanScreen(),
+                const ProfileScreen(),
+              ],
             ),
           ),
         ),

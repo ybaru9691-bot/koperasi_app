@@ -48,7 +48,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (user == null || token == null) {
         if (mounted) {
           setState(() {
-            _isLoading = false;
             _hasError = true;
             _errorMessage = 'Sesi tidak ditemukan. Silakan login kembali.';
           });
@@ -83,13 +82,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (mounted) {
             setState(() {
               _memberData = responseData['data'];
-              _isLoading = false;
             });
           }
         } else {
           if (mounted) {
             setState(() {
-              _isLoading = false;
               _hasError = true;
               _errorMessage = responseData['message'] ?? 'Gagal memuat profil.';
             });
@@ -98,7 +95,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         if (mounted) {
           setState(() {
-            _isLoading = false;
             _hasError = true;
             _errorMessage = 'Gagal memuat profil (Status ${response.statusCode}).';
           });
@@ -108,9 +104,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint('[PROFILE_ERROR] Exception: $e');
       if (mounted) {
         setState(() {
-          _isLoading = false;
           _hasError = true;
           _errorMessage = 'Gagal terhubung ke server API: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
         });
       }
     }

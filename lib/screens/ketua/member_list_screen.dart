@@ -178,27 +178,18 @@ class _MemberListScreenState extends State<MemberListScreen> {
             _currentPage = current;
             _lastPage = last;
             _totalRows = total;
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _members = [];
-            _isLoading = false;
           });
         }
       }
     } catch (e) {
       debugPrint('[MANAGER_MEMBERS_ERROR] Error fetching member data: $e');
+    } finally {
+      _isFetchingMembers = false;
       if (mounted) {
         setState(() {
-          _members = [];
           _isLoading = false;
         });
       }
-    } finally {
-      _isFetchingMembers = false;
     }
   }
 
@@ -387,7 +378,17 @@ class _MemberListScreenState extends State<MemberListScreen> {
                   const SizedBox(height: 16),
 
                   // 4. MEMBERS CARDS LIST
-                  if (_isLoading)
+                  if (_isLoading && _members.isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: LinearProgressIndicator(
+                        minHeight: 2.5,
+                        backgroundColor: Colors.transparent,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
+
+                  if (_isLoading && _members.isEmpty)
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.all(48),

@@ -270,27 +270,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 _statCards = fetchedCards;
                 _recentTransactions = parsedTrxs;
                 _chartData = parsedChart;
-                _isLoading = false;
               });
               return;
             }
           }
         }
+        if (mounted) {
+          setState(() {
+            _errorMessage = "Gagal memuat data dari server.";
+          });
+        }
       }
     } catch (e) {
       debugPrint("Error fetching dashboard summary: $e");
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Gagal memuat data dari server: $e";
+        });
+      }
     } finally {
       _isFetchingSummary = false;
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-
-    // Fallback jika request gagal
-    setState(() {
-      _statCards = [];
-      _recentTransactions = [];
-      _chartData = [];
-      _isLoading = false;
-      _errorMessage = "Gagal memuat data dari server.";
-    });
   }
 
   void _handleLogout() {

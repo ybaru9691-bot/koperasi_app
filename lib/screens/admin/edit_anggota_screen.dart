@@ -196,7 +196,6 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
           final fetchedMember = MemberModel.fromJson(data);
           setState(() {
             _populateControllers(fetchedMember);
-            _isLoadingDetail = false;
           });
           debugPrint('[LOAD_MEMBER_DETAIL] Berhasil memuat & mengisi detail member: ${fetchedMember.name}');
           return;
@@ -204,10 +203,10 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
       }
     } catch (e) {
       debugPrint('[LOAD_MEMBER_DETAIL] Gagal memuat detail member: $e');
-    }
-
-    if (mounted) {
-      setState(() => _isLoadingDetail = false);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDetail = false);
+      }
     }
   }
 

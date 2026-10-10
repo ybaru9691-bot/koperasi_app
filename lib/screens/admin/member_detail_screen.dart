@@ -122,7 +122,6 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
             _rawData = data;
             _fetched = parsed;
             _transactions = rawTrx.map((e) => Map<String, dynamic>.from(e)).toList();
-            _isLoading = false;
           });
         }
       } else {
@@ -130,7 +129,6 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
         if (mounted) {
           setState(() {
             _fetched = widget.member;
-            _isLoading = false;
           });
         }
       }
@@ -139,6 +137,11 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       if (mounted) {
         setState(() {
           _fetched = widget.member;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
           _isLoading = false;
         });
       }
