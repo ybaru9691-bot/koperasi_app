@@ -82,8 +82,78 @@ class MemberStatementPdfService {
     ];
   }
 
+  // In-Memory Caches untuk mencegah spam duplicate HTTP request
+  static final Map<String, Map<String, dynamic>> _statementCache = {};
+  static final Map<String, Future<Map<String, dynamic>>> _inFlightStatementRequests = {};
+  static final Map<String, Map<String, dynamic>> _whiteBookCache = {};
+  static final Map<String, Future<Map<String, dynamic>>> _inFlightWhiteBookRequests = {};
+
+  static String getStatementCacheKey(int memberId, {int? fiscalYear, int? month, int? year}) {
+    return '$memberId-${fiscalYear ?? ""}-${month ?? ""}-${year ?? ""}';
+  }
+
+  /// Mengecek dan mengambil data statement dari memori lokal jika sudah pernah di-fetch
+  Map<String, dynamic>? getCachedStatement(
+    int memberId, {
+    int? fiscalYear,
+    int? month,
+    int? year,
+  }) {
+    final key = getStatementCacheKey(memberId, fiscalYear: fiscalYear, month: month, year: year);
+    return _statementCache[key];
+  }
+
+  /// Membersihkan cache statement jika data diperbarui
+  void clearStatementCache([int? memberId]) {
+    if (memberId != null) {
+      _statementCache.removeWhere((k, _) => k.startsWith('$memberId-'));
+    } else {
+      _statementCache.clear();
+    }
+  }
+
   /// Mengambil data statement individual anggota (12 bulan siklus 21-20)
+  /// Dilengkapi guard in-flight & cache memory agar tidak spam request
   Future<Map<String, dynamic>> fetchStatement(
+    int memberId, {
+    int? fiscalYear,
+    int? month,
+    int? year,
+    bool forceRefresh = false,
+  }) async {
+    final key = getStatementCacheKey(memberId, fiscalYear: fiscalYear, month: month, year: year);
+
+    // 1. Kembalikan data dari cache lokal jika tersedia dan bukan forceRefresh
+    if (!forceRefresh && _statementCache.containsKey(key)) {
+      debugPrint('[MEMBER_STATEMENT] Menggunakan data cache untuk key: $key');
+      return _statementCache[key]!;
+    }
+
+    // 2. Cegah duplicate request yang sedang berjalan (in-flight deduplication)
+    if (_inFlightStatementRequests.containsKey(key)) {
+      debugPrint('[MEMBER_STATEMENT] Request sedang berjalan, menunggu Future yang sama: $key');
+      return await _inFlightStatementRequests[key]!;
+    }
+
+    final future = _executeFetchStatement(
+      memberId,
+      fiscalYear: fiscalYear,
+      month: month,
+      year: year,
+    );
+
+    _inFlightStatementRequests[key] = future;
+
+    try {
+      final result = await future;
+      _statementCache[key] = result;
+      return result;
+    } finally {
+      _inFlightStatementRequests.remove(key);
+    }
+  }
+
+  Future<Map<String, dynamic>> _executeFetchStatement(
     int memberId, {
     int? fiscalYear,
     int? month,
@@ -144,6 +214,43 @@ class MemberStatementPdfService {
 
   /// Mengambil data statement individual Buku Putih anggota (12 bulan siklus 21-20)
   Future<Map<String, dynamic>> fetchWhiteBookStatement(
+    int memberId, {
+    int? fiscalYear,
+    int? month,
+    int? year,
+    bool forceRefresh = false,
+  }) async {
+    final key = getStatementCacheKey(memberId, fiscalYear: fiscalYear, month: month, year: year);
+
+    if (!forceRefresh && _whiteBookCache.containsKey(key)) {
+      debugPrint('[WHITE_BOOK_STATEMENT] Menggunakan data cache untuk key: $key');
+      return _whiteBookCache[key]!;
+    }
+
+    if (_inFlightWhiteBookRequests.containsKey(key)) {
+      debugPrint('[WHITE_BOOK_STATEMENT] Request in-flight, menunggu Future yang sama: $key');
+      return await _inFlightWhiteBookRequests[key]!;
+    }
+
+    final future = _executeFetchWhiteBookStatement(
+      memberId,
+      fiscalYear: fiscalYear,
+      month: month,
+      year: year,
+    );
+
+    _inFlightWhiteBookRequests[key] = future;
+
+    try {
+      final result = await future;
+      _whiteBookCache[key] = result;
+      return result;
+    } finally {
+      _inFlightWhiteBookRequests.remove(key);
+    }
+  }
+
+  Future<Map<String, dynamic>> _executeFetchWhiteBookStatement(
     int memberId, {
     int? fiscalYear,
     int? month,

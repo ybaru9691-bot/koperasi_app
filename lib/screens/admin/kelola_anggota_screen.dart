@@ -36,6 +36,10 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
   int _displayedItemCount = 20;
   String? _errorMessage;
 
+  // Lifecycle & Concurrency Guards
+  bool _hasFetched = false;
+  bool _isFetchingMembers = false;
+
   // Realtime List Data Anggota dari Laravel API Backend
   List<MemberModel> _membersList = [];
 
@@ -43,7 +47,10 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScrollListener);
-    fetchMembers();
+    if (!_hasFetched) {
+      _hasFetched = true;
+      fetchMembers();
+    }
   }
 
   @override
@@ -56,7 +63,13 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
 
   /// 🌐 1. FETCH DATA ANGGOTA REALTIME (GET /api/members?search={query}&page=1)
   Future<void> fetchMembers({String? search, int page = 1}) async {
-    if (!mounted) return;
+    if (_isFetchingMembers) return;
+    _isFetchingMembers = true;
+
+    if (!mounted) {
+      _isFetchingMembers = false;
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -140,6 +153,8 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
           _membersList = [];
         });
       }
+    } finally {
+      _isFetchingMembers = false;
     }
   }
 

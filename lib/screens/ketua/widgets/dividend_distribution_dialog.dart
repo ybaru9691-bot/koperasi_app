@@ -52,6 +52,13 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
   String? _voucherErrorText;
   Timer? _debounceTimer;
 
+  static final Map<String, Map<String, dynamic>> _previewCache = {};
+  static final Map<String, Future<Map<String, dynamic>>> _inFlightPreview = {};
+  bool _isFetchingPreview = false;
+  bool _isOpeningMemberStatement = false;
+
+  String _getPreviewCacheKey(double pct) => '${widget.month}-${widget.year}-$pct';
+
   @override
   void initState() {
     super.initState();
@@ -62,7 +69,30 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
       text: 'BM-DIV-${widget.year}${widget.month.toString().padLeft(2, '0')}',
     );
     _notesController = TextEditingController();
-    _fetchPreview();
+
+    // Cek cache lokal jika sudah pernah dihitung sebelumnya
+    final cacheKey = _getPreviewCacheKey(widget.defaultPercentage);
+    if (_previewCache.containsKey(cacheKey)) {
+      _applyPreviewData(_previewCache[cacheKey]!);
+      _isLoading = false;
+    } else {
+      _fetchPreview();
+    }
+  }
+
+  void _applyPreviewData(Map<String, dynamic> data) {
+    final summary = Map<String, dynamic>.from(data['summary'] ?? {});
+    final rawMembers = data['members'] ?? data['details'] ?? [];
+    List<Map<String, dynamic>> parsedMembers = [];
+    if (rawMembers is List) {
+      parsedMembers = rawMembers.map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+
+    _summary = summary;
+    _members = parsedMembers;
+    if (_voucherNoController.text.isEmpty && summary['default_voucher_no'] != null) {
+      _voucherNoController.text = summary['default_voucher_no'].toString();
+    }
   }
 
   @override
@@ -85,12 +115,39 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
   }
 
   /// 📡 1. Fetch Preview Kalkulasi Deviden dari Backend
-  Future<void> _fetchPreview() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  /// Dilengkapi in-flight guard dan cache memory untuk mencegah spam request berulang
+  Future<void> _fetchPreview({bool forceRefresh = false}) async {
+    if (_isFetchingPreview) return;
+    _isFetchingPreview = true;
+
+    final double percentage = double.tryParse(_percentageController.text.trim()) ?? widget.defaultPercentage;
+    final cacheKey = _getPreviewCacheKey(percentage);
+
+    if (!forceRefresh && _previewCache.containsKey(cacheKey)) {
+      if (!mounted) {
+        _isFetchingPreview = false;
+        return;
+      }
+      setState(() {
+        _applyPreviewData(_previewCache[cacheKey]!);
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      _isFetchingPreview = false;
+      return;
+    }
+
+    if (!mounted) {
+      _isFetchingPreview = false;
+      return;
+    }
+
+    if (_members.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final token = await AuthService().getToken();
@@ -102,54 +159,59 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
         return;
       }
 
-      final double percentage = double.tryParse(_percentageController.text.trim()) ?? widget.defaultPercentage;
+      if (_inFlightPreview.containsKey(cacheKey)) {
+        final cachedData = await _inFlightPreview[cacheKey]!;
+        if (!mounted) return;
+        setState(() {
+          _applyPreviewData(cachedData);
+          _isLoading = false;
+          _errorMessage = null;
+        });
+        return;
+      }
+
       final uri = Uri.parse(
         '${AuthService.staticBaseUrl}/manager/dividends/preview?month=${widget.month}&year=${widget.year}&percentage=$percentage',
       );
 
-      final response = await http.get(
+      final fetchFuture = http.get(
         uri,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 60));
+      ).timeout(const Duration(seconds: 60)).then((response) {
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          final data = body['data'] ?? {};
+          return Map<String, dynamic>.from(data);
+        } else {
+          final body = jsonDecode(response.body);
+          throw Exception(body['message'] ?? 'Gagal memuat pratinjau deviden (HTTP ${response.statusCode}).');
+        }
+      });
+
+      _inFlightPreview[cacheKey] = fetchFuture;
+      final data = await fetchFuture;
+      _previewCache[cacheKey] = data;
 
       if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        final data = body['data'] ?? {};
-        final summary = Map<String, dynamic>.from(data['summary'] ?? {});
-        final rawMembers = data['members'] ?? data['details'] ?? [];
-        
-        List<Map<String, dynamic>> parsedMembers = [];
-        if (rawMembers is List) {
-          parsedMembers = rawMembers.map((e) => Map<String, dynamic>.from(e)).toList();
-        }
-
-        setState(() {
-          _summary = summary;
-          _members = parsedMembers;
-          if (_voucherNoController.text.isEmpty && summary['default_voucher_no'] != null) {
-            _voucherNoController.text = summary['default_voucher_no'].toString();
-          }
-          _isLoading = false;
-        });
-      } else {
-        final body = jsonDecode(response.body);
-        setState(() {
-          _errorMessage = body['message'] ?? 'Gagal memuat pratinjau deviden (HTTP ${response.statusCode}).';
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _applyPreviewData(data);
+        _isLoading = false;
+        _errorMessage = null;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Terjadi kesalahan saat memuat data: $e';
         _isLoading = false;
       });
+    } finally {
+      _inFlightPreview.remove(cacheKey);
+      _isFetchingPreview = false;
     }
   }
 
@@ -199,22 +261,34 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
   }
 
   /// 📖 Buka Modal Lembar Buku Saham & Deviden Anggota (12 Bulan Siklus 21-20)
-  void _openMemberStatement(Map<String, dynamic> member) {
-    final int? memberId = member['member_id'] ?? member['id'];
-    if (memberId == null) return;
+  Future<void> _openMemberStatement(Map<String, dynamic> member) async {
+    if (_isOpeningMemberStatement) return;
+    _isOpeningMemberStatement = true;
 
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => MemberDividendStatementDialog(
-        memberId: memberId,
-        memberName: member['name']?.toString(),
-        memberNumber: member['member_number']?.toString(),
-        fiscalYear: widget.fiscalYear,
-        month: widget.month,
-        year: widget.year,
-      ),
-    );
+    final int? memberId = member['member_id'] ?? member['id'];
+    if (memberId == null) {
+      _isOpeningMemberStatement = false;
+      return;
+    }
+
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) => MemberDividendStatementDialog(
+          memberId: memberId,
+          memberName: member['name']?.toString(),
+          memberNumber: member['member_number']?.toString(),
+          fiscalYear: widget.fiscalYear,
+          month: widget.month,
+          year: widget.year,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        _isOpeningMemberStatement = false;
+      }
+    }
   }
 
   /// 🚀 3. Eksekusi Distribusi Deviden ke Simpanan Sukarela
@@ -344,6 +418,7 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
       final body = jsonDecode(response.body);
 
       if (response.statusCode == 200 && (body['success'] == true || body['status'] == 'success')) {
+        _previewCache.clear();
         Navigator.pop(context);
         widget.onSuccess?.call();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -456,7 +531,7 @@ class _DividendDistributionDialogState extends State<DividendDistributionDialog>
                                   ),
                                   const SizedBox(height: 16),
                                   ElevatedButton.icon(
-                                    onPressed: _fetchPreview,
+                                    onPressed: () => _fetchPreview(forceRefresh: true),
                                     icon: const Icon(Icons.refresh_rounded, size: 18),
                                     label: const Text('Coba Lagi'),
                                     style: ElevatedButton.styleFrom(

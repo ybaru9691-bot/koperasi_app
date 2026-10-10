@@ -187,7 +187,55 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
     }
   }
 
-  Future<void> _fetchLoanDropdownList() async {
+  // Static cache & in-flight Future untuk mencegah spam duplicate HTTP request
+  static List<Map<String, dynamic>>? cachedLoanDropdown;
+  static Future<List<Map<String, dynamic>>>? inFlightLoanDropdown;
+
+  static List<Map<String, dynamic>>? cachedActiveMembers;
+
+  Future<void> _fetchLoanDropdownList({bool forceRefresh = false}) async {
+    if (!forceRefresh && cachedLoanDropdown != null && cachedLoanDropdown!.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _availableLoans = List.from(cachedLoanDropdown!);
+        });
+      } else {
+        _availableLoans = List.from(cachedLoanDropdown!);
+      }
+      return;
+    }
+
+    if (inFlightLoanDropdown != null) {
+      try {
+        final list = await inFlightLoanDropdown!;
+        if (mounted) {
+          setState(() {
+            _availableLoans = List.from(list);
+          });
+        }
+      } catch (_) {}
+      return;
+    }
+
+    final future = _executeFetchLoanDropdown();
+    inFlightLoanDropdown = future;
+
+    try {
+      final list = await future;
+      cachedLoanDropdown = list;
+      if (mounted) {
+        setState(() {
+          _availableLoans = List.from(list);
+        });
+      }
+    } catch (_) {
+    } finally {
+      inFlightLoanDropdown = null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _executeFetchLoanDropdown() async {
+    List<Map<String, dynamic>> result = [];
     try {
       final token = await AuthService().getToken();
       final headers = {
@@ -204,8 +252,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
         final body = jsonDecode(resp.body);
         final raw = body['data'] is List ? body['data'] : (body['loans'] ?? []);
         if (raw is List && raw.isNotEmpty) {
-          _availableLoans = raw.whereType<Map<String, dynamic>>().toList();
-          return;
+          return raw.whereType<Map<String, dynamic>>().toList();
         }
       }
 
@@ -219,8 +266,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
         final body = jsonDecode(resp2.body);
         final raw = body['data'] is List ? body['data'] : (body['loans'] ?? []);
         if (raw is List && raw.isNotEmpty) {
-          _availableLoans = raw.whereType<Map<String, dynamic>>().toList();
-          return;
+          return raw.whereType<Map<String, dynamic>>().toList();
         }
       }
 
@@ -234,7 +280,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
         final listBody = jsonDecode(listResp.body);
         final rawLoans = listBody['data']?['data'] ?? listBody['data'] ?? listBody['loans'] ?? [];
         if (rawLoans is List && rawLoans.isNotEmpty) {
-          _availableLoans = rawLoans.whereType<Map<String, dynamic>>().map((loan) {
+          result = rawLoans.whereType<Map<String, dynamic>>().map((loan) {
             final id = int.tryParse(loan['id']?.toString() ?? '') ?? 0;
             final code = loan['loan_code'] ?? loan['no_kontrak'] ?? '#$id';
             final memberName = loan['member']?['name'] ?? loan['nama_anggota'] ?? 'Anggota';
@@ -255,6 +301,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
     } catch (e) {
       debugPrint('[LOAN_CARD] fetch dropdown error: $e');
     }
+    return result;
   }
 
   Future<void> _fetchLoanCard([int? targetLoanId]) async {
@@ -1235,27 +1282,33 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
     List<Map<String, dynamic>> membersList = [];
     bool loadingMembers = true;
 
-    try {
-      final token = await AuthService().getToken();
-      final resp = await http.get(
-        Uri.parse('${AuthService.staticBaseUrl}/members/active-list'),
-        headers: {
-          'Accept': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 60));
+    if (cachedActiveMembers != null && cachedActiveMembers!.isNotEmpty) {
+      membersList = List.from(cachedActiveMembers!);
+      loadingMembers = false;
+    } else {
+      try {
+        final token = await AuthService().getToken();
+        final resp = await http.get(
+          Uri.parse('${AuthService.staticBaseUrl}/members/active-list'),
+          headers: {
+            'Accept': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 60));
 
-      if (resp.statusCode == 200) {
-        final body = jsonDecode(resp.body);
-        final dynamic raw = body['data'] is List
-            ? body['data']
-            : (body['data']?['data'] ?? body['members'] ?? []);
-        if (raw is List) {
-          membersList = raw.whereType<Map<String, dynamic>>().toList();
+        if (resp.statusCode == 200) {
+          final body = jsonDecode(resp.body);
+          final dynamic raw = body['data'] is List
+              ? body['data']
+              : (body['data']?['data'] ?? body['members'] ?? []);
+          if (raw is List) {
+            membersList = raw.whereType<Map<String, dynamic>>().toList();
+            cachedActiveMembers = membersList;
+          }
         }
-      }
-    } catch (_) {}
-    loadingMembers = false;
+      } catch (_) {}
+      loadingMembers = false;
+    }
 
     if (!mounted) return;
 
@@ -2796,7 +2849,11 @@ class _LoanSearchPickerSheetState extends State<_LoanSearchPickerSheet> {
   @override
   void initState() {
     super.initState();
-    _allLoans = List.from(widget.initialLoans);
+    if (_LoanInstallmentCardScreenState.cachedLoanDropdown != null && _LoanInstallmentCardScreenState.cachedLoanDropdown!.isNotEmpty) {
+      _allLoans = List.from(_LoanInstallmentCardScreenState.cachedLoanDropdown!);
+    } else {
+      _allLoans = List.from(widget.initialLoans);
+    }
     _filteredLoans = List.from(_allLoans);
     if (_allLoans.isEmpty) {
       _fetchLoans();
@@ -2812,6 +2869,16 @@ class _LoanSearchPickerSheetState extends State<_LoanSearchPickerSheet> {
 
   Future<void> _fetchLoans([String query = '']) async {
     if (!mounted) return;
+
+    if (query.trim().isEmpty && _LoanInstallmentCardScreenState.cachedLoanDropdown != null && _LoanInstallmentCardScreenState.cachedLoanDropdown!.isNotEmpty) {
+      setState(() {
+        _allLoans = List.from(_LoanInstallmentCardScreenState.cachedLoanDropdown!);
+        _applyFilter(_searchQuery, _allLoans);
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final token = await AuthService().getToken();
@@ -3081,7 +3148,11 @@ class _MemberSearchPickerSheetState extends State<_MemberSearchPickerSheet> {
   @override
   void initState() {
     super.initState();
-    _allMembers = List.from(widget.initialMembers);
+    if (_LoanInstallmentCardScreenState.cachedActiveMembers != null && _LoanInstallmentCardScreenState.cachedActiveMembers!.isNotEmpty) {
+      _allMembers = List.from(_LoanInstallmentCardScreenState.cachedActiveMembers!);
+    } else {
+      _allMembers = List.from(widget.initialMembers);
+    }
     _filteredMembers = List.from(_allMembers);
 
     // Auto-Load saat dialog dibuka jika list awal kosong atau butuh fetch ulang
@@ -3099,6 +3170,16 @@ class _MemberSearchPickerSheetState extends State<_MemberSearchPickerSheet> {
 
   Future<void> _fetchMembers([String query = '']) async {
     if (!mounted) return;
+
+    if (query.trim().isEmpty && _LoanInstallmentCardScreenState.cachedActiveMembers != null && _LoanInstallmentCardScreenState.cachedActiveMembers!.isNotEmpty) {
+      setState(() {
+        _allMembers = List.from(_LoanInstallmentCardScreenState.cachedActiveMembers!);
+        _applyFilter(query, _allMembers);
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -3124,6 +3205,9 @@ class _MemberSearchPickerSheetState extends State<_MemberSearchPickerSheet> {
             : (body['data']?['data'] ?? body['members'] ?? []);
         if (raw is List) {
           final list = raw.whereType<Map<String, dynamic>>().toList();
+          if (query.trim().isEmpty) {
+            _LoanInstallmentCardScreenState.cachedActiveMembers = list;
+          }
           if (mounted) {
             setState(() {
               if (query.trim().isEmpty) {

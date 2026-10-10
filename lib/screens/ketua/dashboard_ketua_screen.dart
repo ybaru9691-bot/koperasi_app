@@ -54,15 +54,23 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
   double _totalKasKeluar = 0.0;
   List<dynamic> _monthlyChartData = [];
   final Set<String> _loadingApprovals = {};
+  bool _hasFetched = false;
+  bool _isFetchingNotifications = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchDashboardSummary();
-    _fetchNotifications();
+    if (!_hasFetched) {
+      _hasFetched = true;
+      _fetchDashboardSummary();
+      _fetchNotifications();
+    }
   }
 
   Future<void> _fetchNotifications() async {
+    if (_isFetchingNotifications) return;
+    _isFetchingNotifications = true;
+
     try {
       final token = await AuthService().getToken();
       if (token == null) return;
@@ -93,6 +101,8 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
       }
     } catch (e) {
       debugPrint("Gagal fetch notifikasi: $e");
+    } finally {
+      _isFetchingNotifications = false;
     }
   }
 
@@ -135,13 +145,51 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
     }
   }
 
-  Future<void> _fetchDashboardSummary() async {
-    if (!mounted) return;
+  bool _isFetchingSummary = false;
+  static Map<String, dynamic>? _cachedDashboardSummary;
+
+  void _applySummaryData(Map<String, dynamic> data) {
+    final List<dynamic> pendingRaw = data['pending_approvals'] ?? [];
     setState(() {
-      _isLoading = true;
+      _totalKasBank = double.tryParse((data['total_kas_bank'] ?? 0.0).toString()) ?? 0.0;
+      _kasLaci = double.tryParse((data['kas_laci'] ?? 0.0).toString()) ?? 0.0;
+      _kasBank = double.tryParse((data['kas_bank'] ?? 0.0).toString()) ?? 0.0;
+      _totalSahamTetap = double.tryParse((data['total_saham_tetap'] ?? data['saham_tetap'] ?? ((data['total_principal'] ?? 0) + (data['total_mandatory'] ?? 0)) ?? 0.0).toString()) ?? 0.0;
+      _simpananSukarela = double.tryParse((data['total_simpanan_sukarela'] ?? data['simpanan_sukarela'] ?? data['total_voluntary'] ?? 0.0).toString()) ?? 0.0;
+      _tabunganHarian = double.tryParse((data['total_tabungan_harian'] ?? data['tabungan_harian'] ?? data['total_daily_savings'] ?? data['total_daily'] ?? data['simpanan_bisa_ditarik'] ?? 0.0).toString()) ?? 0.0;
+      _danaDukaSosial = double.tryParse((data['dana_duka_sosial'] ?? 0.0).toString()) ?? 0.0;
+      _totalKasMasuk = double.tryParse((data['total_kas_masuk'] ?? 0.0).toString()) ?? 0.0;
+      _totalKasKeluar = double.tryParse((data['total_kas_keluar'] ?? 0.0).toString()) ?? 0.0;
+      _monthlyChartData = data['cashflow_chart'] ?? [];
+      _approvalRequests = ApprovalDataModel.fromJsonList(pendingRaw);
+      _isLoading = false;
       _hasError = false;
       _errorMessage = null;
     });
+  }
+
+  Future<void> _fetchDashboardSummary({bool forceRefresh = false}) async {
+    if (_isFetchingSummary) return;
+
+    if (!forceRefresh && _cachedDashboardSummary != null) {
+      if (!mounted) return;
+      _applySummaryData(_cachedDashboardSummary!);
+      return;
+    }
+
+    _isFetchingSummary = true;
+    if (!mounted) {
+      _isFetchingSummary = false;
+      return;
+    }
+
+    if (_cachedDashboardSummary == null) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final authService = AuthService();
@@ -175,22 +223,9 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         if (responseData['success'] == true && responseData['data'] != null) {
-          final data = responseData['data'];
-          final List<dynamic> pendingRaw = data['pending_approvals'] ?? [];
-          setState(() {
-            _totalKasBank = double.tryParse((data['total_kas_bank'] ?? 0.0).toString()) ?? 0.0;
-            _kasLaci = double.tryParse((data['kas_laci'] ?? 0.0).toString()) ?? 0.0;
-            _kasBank = double.tryParse((data['kas_bank'] ?? 0.0).toString()) ?? 0.0;
-            _totalSahamTetap = double.tryParse((data['total_saham_tetap'] ?? data['saham_tetap'] ?? ((data['total_principal'] ?? 0) + (data['total_mandatory'] ?? 0)) ?? 0.0).toString()) ?? 0.0;
-            _simpananSukarela = double.tryParse((data['total_simpanan_sukarela'] ?? data['simpanan_sukarela'] ?? data['total_voluntary'] ?? 0.0).toString()) ?? 0.0;
-            _tabunganHarian = double.tryParse((data['total_tabungan_harian'] ?? data['tabungan_harian'] ?? data['total_daily_savings'] ?? data['total_daily'] ?? data['simpanan_bisa_ditarik'] ?? 0.0).toString()) ?? 0.0;
-            _danaDukaSosial = double.tryParse((data['dana_duka_sosial'] ?? 0.0).toString()) ?? 0.0;
-            _totalKasMasuk = double.tryParse((data['total_kas_masuk'] ?? 0.0).toString()) ?? 0.0;
-            _totalKasKeluar = double.tryParse((data['total_kas_keluar'] ?? 0.0).toString()) ?? 0.0;
-            _monthlyChartData = data['cashflow_chart'] ?? [];
-            _approvalRequests = ApprovalDataModel.fromJsonList(pendingRaw);
-            _isLoading = false;
-          });
+          final data = Map<String, dynamic>.from(responseData['data']);
+          _cachedDashboardSummary = data;
+          _applySummaryData(data);
         } else {
           setState(() {
             _hasError = true;
@@ -213,6 +248,8 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
           _isLoading = false;
         });
       }
+    } finally {
+      _isFetchingSummary = false;
     }
   }
 
@@ -270,7 +307,7 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
               ),
             );
           }
-          _fetchDashboardSummary();
+          _fetchDashboardSummary(forceRefresh: true);
         } else {
           if (mounted) {
             ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -326,7 +363,7 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
       _isRefreshing = true;
     });
 
-    await _fetchDashboardSummary();
+    await _fetchDashboardSummary(forceRefresh: true);
 
     if (!mounted) return;
 
@@ -380,7 +417,7 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
     );
 
     if (result == true) {
-      _fetchDashboardSummary();
+      _fetchDashboardSummary(forceRefresh: true);
       _executiveReportKey.currentState?.fetchReportData();
     }
   }
@@ -716,30 +753,32 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
     );
   }
 
+  final Map<int, Widget> _navScreenCache = {};
+
   Widget _buildSelectedNavContent(bool isDesktop) {
     if (_selectedNavIndex == 1) {
-      return ExecutiveReportScreen(key: _executiveReportKey);
+      return _navScreenCache.putIfAbsent(1, () => ExecutiveReportScreen(key: _executiveReportKey));
     }
     if (_selectedNavIndex == 2) {
-      return const TransactionApprovalScreen();
+      return _navScreenCache.putIfAbsent(2, () => const TransactionApprovalScreen());
     }
     if (_selectedNavIndex == 3) {
-      return const MemberListScreen();
+      return _navScreenCache.putIfAbsent(3, () => const MemberListScreen());
     }
     if (_selectedNavIndex == 4) {
-      return const AnnouncementScreen();
+      return _navScreenCache.putIfAbsent(4, () => const AnnouncementScreen());
     }
     if (_selectedNavIndex == 5) {
-      return const SystemSettingsScreen();
+      return _navScreenCache.putIfAbsent(5, () => const SystemSettingsScreen());
     }
     if (_selectedNavIndex == 6) {
-      return const PeriodManagementScreen();
+      return _navScreenCache.putIfAbsent(6, () => const PeriodManagementScreen());
     }
     if (_selectedNavIndex == 9) {
-      return const ShuParameterScreen();
+      return _navScreenCache.putIfAbsent(9, () => const ShuParameterScreen());
     }
     if (_selectedNavIndex == 10) {
-      return const ShuDistributionScreen();
+      return _navScreenCache.putIfAbsent(10, () => const ShuDistributionScreen());
     }
 
     if (_isLoading) {
@@ -763,7 +802,7 @@ class _DashboardKetuaScreenState extends State<DashboardKetuaScreen> {
               Text(_errorMessage ?? 'Gagal memuat ringkasan dashboard', textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _fetchDashboardSummary,
+                onPressed: () => _fetchDashboardSummary(forceRefresh: true),
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
                 child: const Text('Coba Lagi'),
               ),

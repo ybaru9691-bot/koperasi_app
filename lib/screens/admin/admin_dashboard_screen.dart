@@ -57,7 +57,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return "Rp ${buffer.toString().split('').reversed.join('')}";
   }
 
+  bool _isFetchingSummary = false;
+
   Future<void> _fetchAdminDashboardData() async {
+    if (_isFetchingSummary) return;
+    _isFetchingSummary = true;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -274,6 +279,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
     } catch (e) {
       debugPrint("Error fetching dashboard summary: $e");
+    } finally {
+      _isFetchingSummary = false;
     }
 
     // Fallback jika request gagal

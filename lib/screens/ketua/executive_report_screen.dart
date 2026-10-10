@@ -37,9 +37,12 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
   String? _errorMessage;
   double _shuAllocationPercentage = 25.0;
   bool _isTriggeringBunga = false;
+  bool _isOpeningDividendDialog = false;
   bool _isExportingPdf = false;
   bool _isExportingMemorialPdf = false;
   final Set<String> _processedInterestPeriods = {};
+  bool _hasFetched = false;
+  bool _isFetchingReport = false;
 
   bool get _isCurrentPeriodInterestProcessed =>
       _processedInterestPeriods.contains('$_selectedMonth-$_selectedYear') ||
@@ -71,7 +74,10 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
     }
     _selectedPeriod = '${_monthsList[_selectedMonth - 1]} $_selectedYear';
     
-    _fetchReportData();
+    if (!_hasFetched) {
+      _hasFetched = true;
+      _fetchReportData();
+    }
   }
 
   @override
@@ -81,7 +87,13 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
   }
 
   Future<void> _fetchReportData({bool isPeriodChange = false}) async {
-    if (!mounted) return;
+    if (_isFetchingReport) return;
+    _isFetchingReport = true;
+
+    if (!mounted) {
+      _isFetchingReport = false;
+      return;
+    }
     setState(() {
       if (isPeriodChange && _report != null) {
         _isChangingPeriod = true;
@@ -211,12 +223,14 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
           );
         }
       }
+    } finally {
+      _isFetchingReport = false;
     }
   }
 
   ///  1. PREVIEW PEMBAGIAN BUNGA BUKU PUTIH (BM)
   Future<void> _previewAndTriggerMonthlyInterest() async {
-    if (!mounted) return;
+    if (_isTriggeringBunga || !mounted) return;
     setState(() {
       _isTriggeringBunga = true;
     });
@@ -501,23 +515,32 @@ class ExecutiveReportScreenState extends State<ExecutiveReportScreen> with Singl
   }
 
   /// 💰 Buka Modal Kalkulasi & Eksekusi Pembagian Deviden Buku Biru (SHU)
-  void _openDividendDistributionDialog() {
+  Future<void> _openDividendDistributionDialog() async {
+    if (_isOpeningDividendDialog) return;
+    _isOpeningDividendDialog = true;
+
     final String currentPeriodName = '${_monthsList[_selectedMonth - 1]} $_selectedYear';
     final double defaultPct = _shuAllocationPercentage > 0 ? _shuAllocationPercentage : 25.0;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => DividendDistributionDialog(
-        month: _selectedMonth,
-        year: _selectedYear,
-        periodName: currentPeriodName,
-        defaultPercentage: defaultPct,
-        onSuccess: () {
-          _fetchReportData();
-        },
-      ),
-    );
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => DividendDistributionDialog(
+          month: _selectedMonth,
+          year: _selectedYear,
+          periodName: currentPeriodName,
+          defaultPercentage: defaultPct,
+          onSuccess: () {
+            _fetchReportData();
+          },
+        ),
+      );
+    } finally {
+      if (mounted) {
+        _isOpeningDividendDialog = false;
+      }
+    }
   }
 
   Widget _previewInfoRow(String label, String value, {bool isBold = false, Color? valueColor, String? subtitle}) {

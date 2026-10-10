@@ -43,6 +43,11 @@ class _MemberListScreenState extends State<MemberListScreen> {
   int _newMembers = 0;
   int _inactiveMembers = 0;
 
+  // Lifecycle & Concurrency Guards
+  bool _hasFetched = false;
+  bool _isFetchingStats = false;
+  bool _isFetchingMembers = false;
+
   String _formatRibuan(int val) {
     return val.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -53,8 +58,11 @@ class _MemberListScreenState extends State<MemberListScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchMemberStats();
-    _fetchMembersData();
+    if (!_hasFetched) {
+      _hasFetched = true;
+      _fetchMemberStats();
+      _fetchMembersData();
+    }
   }
 
   @override
@@ -65,6 +73,9 @@ class _MemberListScreenState extends State<MemberListScreen> {
   }
 
   Future<void> _fetchMemberStats() async {
+    if (_isFetchingStats) return;
+    _isFetchingStats = true;
+
     try {
       final token = await AuthService().getToken();
       final uri = Uri.parse('${AuthService.staticBaseUrl}/manager/members/stats');
@@ -91,11 +102,19 @@ class _MemberListScreenState extends State<MemberListScreen> {
       }
     } catch (e) {
       debugPrint('[MEMBER_STATS_ERROR] Error fetching member stats: $e');
+    } finally {
+      _isFetchingStats = false;
     }
   }
 
   Future<void> _fetchMembersData() async {
-    if (!mounted) return;
+    if (_isFetchingMembers) return;
+    _isFetchingMembers = true;
+
+    if (!mounted) {
+      _isFetchingMembers = false;
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -178,6 +197,8 @@ class _MemberListScreenState extends State<MemberListScreen> {
           _isLoading = false;
         });
       }
+    } finally {
+      _isFetchingMembers = false;
     }
   }
 

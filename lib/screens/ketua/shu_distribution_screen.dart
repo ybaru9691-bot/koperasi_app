@@ -19,6 +19,7 @@ class ShuDistributionScreen extends StatefulWidget {
 class _ShuDistributionScreenState extends State<ShuDistributionScreen> {
   bool _isLoading = true;
   bool _isRefreshing = false;
+  bool _isOpeningDialog = false;
   String? _errorMessage;
 
   int _selectedFiscalYear = DateTime.now().year;
@@ -110,48 +111,66 @@ class _ShuDistributionScreenState extends State<ShuDistributionScreen> {
     }
   }
 
-  void _openDistributionDialogForMonth(Map<String, dynamic> monthItem) {
+  Future<void> _openDistributionDialogForMonth(Map<String, dynamic> monthItem) async {
+    if (_isOpeningDialog) return;
+    _isOpeningDialog = true;
+
     final int m = monthItem['month'] ?? DateTime.now().month;
     final int y = monthItem['calendar_year'] ?? _selectedFiscalYear;
     final String periodName = monthItem['month_label'] ?? '${monthItem['month_name']} $y';
     final double defaultPct = ((monthItem['percentage'] ?? monthItem['dividend_allocation_percent'] ?? 25.0) as num).toDouble();
     final double netProfit = ((monthItem['net_profit'] ?? monthItem['net_income'] ?? 0) as num).toDouble();
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => DividendDistributionDialog(
-        month: m,
-        year: y,
-        fiscalYear: _selectedFiscalYear,
-        periodName: periodName,
-        defaultPercentage: defaultPct > 0 ? defaultPct : 25.0,
-        initialNetProfit: netProfit > 0 ? netProfit : null,
-        onSuccess: () {
-          _fetchMonthlyStatus(isRefresh: true);
-        },
-      ),
-    );
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => DividendDistributionDialog(
+          month: m,
+          year: y,
+          fiscalYear: _selectedFiscalYear,
+          periodName: periodName,
+          defaultPercentage: defaultPct > 0 ? defaultPct : 25.0,
+          initialNetProfit: netProfit > 0 ? netProfit : null,
+          onSuccess: () {
+            _fetchMonthlyStatus(isRefresh: true);
+          },
+        ),
+      );
+    } finally {
+      if (mounted) {
+        _isOpeningDialog = false;
+      }
+    }
   }
 
-  void _openCurrentPeriodDialog() {
+  Future<void> _openCurrentPeriodDialog() async {
+    if (_isOpeningDialog) return;
+    _isOpeningDialog = true;
+
     final now = DateTime.now();
     final String periodName = DateFormat('MMMM yyyy', 'id_ID').format(now);
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => DividendDistributionDialog(
-        month: now.month,
-        year: now.year,
-        fiscalYear: _selectedFiscalYear,
-        periodName: periodName,
-        defaultPercentage: 25.0,
-        onSuccess: () {
-          _fetchMonthlyStatus(isRefresh: true);
-        },
-      ),
-    );
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => DividendDistributionDialog(
+          month: now.month,
+          year: now.year,
+          fiscalYear: _selectedFiscalYear,
+          periodName: periodName,
+          defaultPercentage: 25.0,
+          onSuccess: () {
+            _fetchMonthlyStatus(isRefresh: true);
+          },
+        ),
+      );
+    } finally {
+      if (mounted) {
+        _isOpeningDialog = false;
+      }
+    }
   }
 
   @override

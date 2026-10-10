@@ -40,10 +40,34 @@ class _MemberDividendStatementDialogState extends State<MemberDividendStatementD
   List<Map<String, dynamic>> _coopBenchmarks = [];
   Map<String, dynamic> _rekapitulasi = {};
 
+  bool _isFetchingStatement = false;
+
   @override
   void initState() {
     super.initState();
-    _fetchStatement();
+    // Cek cache lokal terlebih dahulu agar rendering langsung seketika (0 detik)
+    final cachedData = _pdfService.getCachedStatement(
+      widget.memberId,
+      fiscalYear: widget.fiscalYear,
+      month: widget.month,
+      year: widget.year,
+    );
+
+    if (cachedData != null && cachedData.isNotEmpty) {
+      _applyData(cachedData);
+      _isLoading = false;
+    } else {
+      _fetchStatement();
+    }
+  }
+
+  void _applyData(Map<String, dynamic> data) {
+    _data = Map<String, dynamic>.from(data);
+    _member = Map<String, dynamic>.from(data['member'] ?? {});
+    _saldoAwal = data['saldo_awal'] != null ? Map<String, dynamic>.from(data['saldo_awal']) : null;
+    _monthlyRecords = List<Map<String, dynamic>>.from(data['monthly_records'] ?? []);
+    _coopBenchmarks = List<Map<String, dynamic>>.from(data['coop_benchmarks'] ?? []);
+    _rekapitulasi = Map<String, dynamic>.from(data['rekapitulasi'] ?? {});
   }
 
   String _formatRupiah(num? amount, {bool showDashIfZero = false}) {
@@ -61,12 +85,21 @@ class _MemberDividendStatementDialogState extends State<MemberDividendStatementD
     return NumberFormat.decimalPattern('id_ID').format(amount);
   }
 
-  Future<void> _fetchStatement() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _fetchStatement({bool forceRefresh = false}) async {
+    if (_isFetchingStatement) return;
+    _isFetchingStatement = true;
+
+    if (!mounted) {
+      _isFetchingStatement = false;
+      return;
+    }
+
+    if (_data.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final data = await _pdfService.fetchStatement(
@@ -74,18 +107,15 @@ class _MemberDividendStatementDialogState extends State<MemberDividendStatementD
         fiscalYear: widget.fiscalYear,
         month: widget.month,
         year: widget.year,
+        forceRefresh: forceRefresh,
       );
 
       if (!mounted) return;
 
       setState(() {
-        _data = Map<String, dynamic>.from(data);
-        _member = Map<String, dynamic>.from(data['member'] ?? {});
-        _saldoAwal = data['saldo_awal'] != null ? Map<String, dynamic>.from(data['saldo_awal']) : null;
-        _monthlyRecords = List<Map<String, dynamic>>.from(data['monthly_records'] ?? []);
-        _coopBenchmarks = List<Map<String, dynamic>>.from(data['coop_benchmarks'] ?? []);
-        _rekapitulasi = Map<String, dynamic>.from(data['rekapitulasi'] ?? {});
+        _applyData(data);
         _isLoading = false;
+        _errorMessage = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -93,6 +123,8 @@ class _MemberDividendStatementDialogState extends State<MemberDividendStatementD
         _errorMessage = 'Gagal memuat lembar buku saham: $e';
         _isLoading = false;
       });
+    } finally {
+      _isFetchingStatement = false;
     }
   }
 
@@ -189,7 +221,7 @@ class _MemberDividendStatementDialogState extends State<MemberDividendStatementD
                                 Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: _fetchStatement,
+                                  onPressed: () => _fetchStatement(forceRefresh: true),
                                   icon: const Icon(Icons.refresh_rounded, size: 18),
                                   label: const Text('Coba Lagi'),
                                 ),

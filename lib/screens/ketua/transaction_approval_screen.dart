@@ -28,11 +28,16 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
+  bool _hasFetched = false;
+  bool _isFetchingApprovals = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchApprovals();
+    if (!_hasFetched) {
+      _hasFetched = true;
+      _fetchApprovals();
+    }
   }
 
   @override
@@ -76,7 +81,13 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
   }
 
   Future<void> _fetchApprovals() async {
-    if (!mounted) return;
+    if (_isFetchingApprovals) return;
+    _isFetchingApprovals = true;
+
+    if (!mounted) {
+      _isFetchingApprovals = false;
+      return;
+    }
     setState(() {
       _isLoading = true;
     });
@@ -89,31 +100,38 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-      // 1. Fetch pending
-      final pendingLoansRes = await http.get(
-        Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=pending_manager'),
-        headers: headers,
-      );
-      final pendingTxRes = await http.get(
-        Uri.parse('${AuthService.staticBaseUrl}/transactions/pending'),
-        headers: headers,
-      );
+      // Jalankan seluruh pemanggilan secara paralel dengan Future.wait
+      final responses = await Future.wait([
+        // 1. Fetch pending loans & transactions
+        http.get(
+          Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=pending_manager'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 60)),
+        http.get(
+          Uri.parse('${AuthService.staticBaseUrl}/transactions/pending'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 60)),
+        // 2. Fetch approved loans & transactions
+        http.get(
+          Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=approved'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 60)),
+        http.get(
+          Uri.parse('${AuthService.staticBaseUrl}/transactions'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 60)),
+        // 3. Fetch rejected loans
+        http.get(
+          Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=rejected'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 60)),
+      ]);
 
-      // 2. Fetch approved
-      final approvedLoansRes = await http.get(
-        Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=approved'),
-        headers: headers,
-      );
-      final allTxRes = await http.get(
-        Uri.parse('${AuthService.staticBaseUrl}/transactions'),
-        headers: headers,
-      );
-
-      // 3. Fetch rejected
-      final rejectedLoansRes = await http.get(
-        Uri.parse('${AuthService.staticBaseUrl}/admin/loans?status=rejected'),
-        headers: headers,
-      );
+      final pendingLoansRes = responses[0];
+      final pendingTxRes = responses[1];
+      final approvedLoansRes = responses[2];
+      final allTxRes = responses[3];
+      final rejectedLoansRes = responses[4];
 
       List<PendingApprovalModel> temp = [];
 
@@ -208,6 +226,8 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
           _isLoading = false;
         });
       }
+    } finally {
+      _isFetchingApprovals = false;
     }
   }
 
