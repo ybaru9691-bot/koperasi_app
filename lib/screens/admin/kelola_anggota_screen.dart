@@ -32,6 +32,7 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
 
   // Realtime API & Pagination State
   bool _isLoading = true;
+  bool _isRefreshing = false;
   bool _isLoadingMore = false;
   int _displayedItemCount = 20;
   String? _errorMessage;
@@ -73,6 +74,9 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
 
     setState(() {
       _isLoading = true;
+      if (_membersList.isNotEmpty) {
+        _isRefreshing = true;
+      }
       _errorMessage = null;
     });
 
@@ -133,28 +137,32 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
           setState(() {
             _membersList = parsedList;
             _displayedItemCount = parsedList.length > 20 ? parsedList.length : 20;
-            _isLoading = false;
           });
         }
       } else {
         if (mounted) {
           setState(() {
-            _isLoading = false;
             _errorMessage = 'Gagal mengambil data dari server (Status ${response.statusCode}).';
           });
         }
       }
     } catch (e) {
       debugPrint('[MEMBER_FETCH_LOG] Exception: $e');
+      debugPrint("Error fetching members: $e");
       if (mounted) {
         setState(() {
-          _isLoading = false;
-          // Kosongkan list jika koneksi server lokal offline
-          _membersList = [];
+          _errorMessage = 'Terjadi kesalahan saat memuat data anggota.';
         });
       }
     } finally {
       _isFetchingMembers = false;
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isRefreshing = false;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -397,9 +405,16 @@ class _KelolaAnggotaScreenState extends State<KelolaAnggotaScreen> {
             // Counter Bar Section
             _buildCounterBarSection(filtered.length),
 
+            if ((_isLoading || _isRefreshing) && _membersList.isNotEmpty)
+              const LinearProgressIndicator(
+                minHeight: 2.5,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+
             // Main Content Body (Loading / Empty State / List View)
             Expanded(
-              child: _isLoading
+              child: (_isLoading && _membersList.isEmpty)
                   ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
