@@ -31,6 +31,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
   late final TextEditingController _emailController;
   late final TextEditingController _addressController;
   late final TextEditingController _churchController;
+  TextEditingController get _churchSectorController => _churchController;
 
   // Data Pribadi
   late final TextEditingController _placeOfBirthController;
@@ -55,55 +56,192 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
   bool _obscureConfirmPin = true;
   bool _isUpdatingProfile = false;
   bool _isResettingPin = false;
+  bool _isLoadingDetail = false;
+
+  /// 🔄 Isi atau update nilai seluruh TextEditingController & dropdown dari objek MemberModel
+  void _populateControllers(MemberModel member) {
+    // 1. Data Profil Dasar
+    if (member.nik.isNotEmpty && member.nik != '-') {
+      _nikController.text = member.nik;
+    }
+    if (member.name.isNotEmpty && member.name != 'Tanpa Nama') {
+      _nameController.text = member.name;
+    }
+    final String initialPhone = member.phone.isNotEmpty && member.phone != '-'
+        ? member.phone
+        : (member.email.contains('@') ? '' : member.email);
+    if (initialPhone.isNotEmpty && initialPhone != '-') {
+      _phoneController.text = initialPhone;
+    }
+    if (member.email.contains('@')) {
+      _emailController.text = member.email;
+    }
+    final String bp = member.bukuPutihNo ?? (member.bukuPutihNumber != '-' ? member.bukuPutihNumber : '');
+    if (bp.isNotEmpty && bp != '-' && bp != 'null') {
+      _bukuPutihController.text = bp;
+    }
+
+    // 2. Data Pribadi Tambahan (Sesuai Spesifikasi Prompt)
+    _placeOfBirthController.text = member.placeOfBirth ?? member.tempatLahir ?? '';
+    if (_placeOfBirthController.text == '-' || _placeOfBirthController.text == 'null') {
+      _placeOfBirthController.text = '';
+    }
+
+    final String? dobRaw = member.dateOfBirth ?? member.tanggalLahir;
+    final String dob = (dobRaw != null && dobRaw != '-' && dobRaw != 'null')
+        ? (MemberModel.parseDateOnly(dobRaw) ?? dobRaw)
+        : '';
+    _dateOfBirthController.text = dob;
+
+    _occupationController.text = member.occupation ?? member.pekerjaan ?? '';
+    if (_occupationController.text == '-' || _occupationController.text == 'null') {
+      _occupationController.text = '';
+    }
+
+    _educationController.text = member.education ?? member.pendidikan ?? '';
+    if (_educationController.text == '-' || _educationController.text == 'null') {
+      _educationController.text = '';
+    }
+
+    _familyStatusController.text = member.familyStatus ?? member.statusKeluarga ?? '';
+    if (_familyStatusController.text == '-' || _familyStatusController.text == 'null') {
+      _familyStatusController.text = '';
+    }
+
+    _churchSectorController.text = member.churchSector ?? member.sektorGereja ?? '';
+    if (_churchSectorController.text == '-' || _churchSectorController.text == 'null') {
+      _churchSectorController.text = '';
+    }
+
+    _addressController.text = member.address ?? member.alamat ?? '';
+    if (_addressController.text == '-' || _addressController.text == 'null') {
+      _addressController.text = '';
+    }
+
+    final String g = member.gender ?? member.jenisKelamin ?? '';
+    if (g == 'Laki-laki' || g == 'Perempuan') {
+      _selectedGender = g;
+    } else if (g.toLowerCase() == 'male' || g.toLowerCase() == 'l') {
+      _selectedGender = 'Laki-laki';
+    } else if (g.toLowerCase() == 'female' || g.toLowerCase() == 'p') {
+      _selectedGender = 'Perempuan';
+    }
+
+    // 3. Data Ahli Waris (Sesuai Spesifikasi Prompt)
+    _heirNameController.text = member.heirName ?? member.namaAhliWaris ?? '';
+    if (_heirNameController.text == '-' || _heirNameController.text == 'null') {
+      _heirNameController.text = '';
+    }
+
+    _heirRelationshipController.text = member.heirRelationship ?? member.hubunganAhliWaris ?? '';
+    if (_heirRelationshipController.text == '-' || _heirRelationshipController.text == 'null') {
+      _heirRelationshipController.text = '';
+    }
+
+    _heirPlaceOfBirthController.text = member.heirPlaceOfBirth ?? member.tempatLahirAhliWaris ?? '';
+    if (_heirPlaceOfBirthController.text == '-' || _heirPlaceOfBirthController.text == 'null') {
+      _heirPlaceOfBirthController.text = '';
+    }
+
+    final String? hDobRaw = member.heirDateOfBirth ?? member.tanggalLahirAhliWaris;
+    final String hDob = (hDobRaw != null && hDobRaw != '-' && hDobRaw != 'null')
+        ? (MemberModel.parseDateOnly(hDobRaw) ?? hDobRaw)
+        : '';
+    _heirDateOfBirthController.text = hDob;
+
+    _heirAddressController.text = member.heirAddress ?? member.alamatAhliWaris ?? '';
+    if (_heirAddressController.text == '-' || _heirAddressController.text == 'null') {
+      _heirAddressController.text = '';
+    }
+  }
+
+  /// 🌐 0. FETCH DETAIL DATA ANGGOTA (GET /api/members/{id}/details atau GET /api/members/{id})
+  Future<void> loadMemberDetail() async {
+    if (!mounted) return;
+    setState(() => _isLoadingDetail = true);
+
+    try {
+      final token = await AuthService().getToken();
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+
+      // Coba endpoint /details terlebih dahulu, fallback ke /members/:id
+      final detailsUri = Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}/details');
+      var response = await http.get(detailsUri, headers: headers).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 404) {
+        final fallbackUri = Uri.parse('${AuthService.staticBaseUrl}/members/${widget.member.id}');
+        response = await http.get(fallbackUri, headers: headers).timeout(const Duration(seconds: 30));
+      }
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        Map<String, dynamic>? data;
+        if (decoded is Map<String, dynamic>) {
+          if (decoded['data'] is Map<String, dynamic>) {
+            data = decoded['data'] as Map<String, dynamic>;
+          } else if (decoded['member'] is Map<String, dynamic>) {
+            data = decoded['member'] as Map<String, dynamic>;
+          } else {
+            data = decoded;
+          }
+        }
+
+        if (data != null && mounted) {
+          final fetchedMember = MemberModel.fromJson(data);
+          setState(() {
+            _populateControllers(fetchedMember);
+            _isLoadingDetail = false;
+          });
+          debugPrint('[LOAD_MEMBER_DETAIL] Berhasil memuat & mengisi detail member: ${fetchedMember.name}');
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('[LOAD_MEMBER_DETAIL] Gagal memuat detail member: $e');
+    }
+
+    if (mounted) {
+      setState(() => _isLoadingDetail = false);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
 
-    final String initialPhone = widget.member.phone.isNotEmpty
-        ? widget.member.phone
-        : (widget.member.email.contains('@') ? '' : widget.member.email);
+    _nikController = TextEditingController();
+    _nameController = TextEditingController();
+    _bukuPutihController = TextEditingController();
+    _phoneController = TextEditingController();
+    _emailController = TextEditingController();
+    _addressController = TextEditingController();
+    _churchController = TextEditingController();
 
-    final String initialEmail = widget.member.email.contains('@') ? widget.member.email : '';
+    _placeOfBirthController = TextEditingController();
+    _dateOfBirthController = TextEditingController();
+    _occupationController = TextEditingController();
+    _educationController = TextEditingController();
+    _familyStatusController = TextEditingController();
 
-    final String initialBukuPutih = widget.member.bukuPutihNo ??
-        ((widget.member.bukuPutihNumber.isNotEmpty &&
-                widget.member.bukuPutihNumber != '-' &&
-                widget.member.bukuPutihNumber != 'null' &&
-                !widget.member.bukuPutihNumber.startsWith('{'))
-            ? widget.member.bukuPutihNumber
-            : '');
+    _heirNameController = TextEditingController();
+    _heirRelationshipController = TextEditingController();
+    _heirPlaceOfBirthController = TextEditingController();
+    _heirDateOfBirthController = TextEditingController();
+    _heirAddressController = TextEditingController();
 
-    _nikController = TextEditingController(text: widget.member.nik != '-' ? widget.member.nik : '');
-    _nameController = TextEditingController(text: widget.member.name);
-    _bukuPutihController = TextEditingController(text: initialBukuPutih);
-    _phoneController = TextEditingController(text: initialPhone != '-' ? initialPhone : '');
-    _emailController = TextEditingController(text: initialEmail);
-    _addressController = TextEditingController(text: widget.member.address != '-' ? widget.member.address : '');
-    _churchController = TextEditingController(text: widget.member.churchSector != '-' ? widget.member.churchSector : '');
+    _selectedGender = (widget.member.gender == 'Laki-laki' || widget.member.gender == 'Perempuan')
+        ? widget.member.gender
+        : 'Laki-laki';
 
-    // Data Pribadi
-    final String initialPlaceOfBirth = widget.member.placeOfBirth ?? widget.member.tempatLahir ?? '';
-    final String? initialDateOfBirthRaw = widget.member.dateOfBirth ?? widget.member.tanggalLahir;
-    final String initialDateOfBirth = initialDateOfBirthRaw != null && initialDateOfBirthRaw != '-' && initialDateOfBirthRaw != 'null'
-        ? (MemberModel.parseDateOnly(initialDateOfBirthRaw) ?? initialDateOfBirthRaw)
-        : '';
+    // 1. Inisialisasi awal menggunakan data widget.member yang diteruskan
+    _populateControllers(widget.member);
 
-    _placeOfBirthController = TextEditingController(
-      text: initialPlaceOfBirth != '-' && initialPlaceOfBirth != 'null' ? initialPlaceOfBirth : '',
-    );
-    _dateOfBirthController = TextEditingController(text: initialDateOfBirth);
-    _selectedGender = (widget.member.gender == 'Laki-laki' || widget.member.gender == 'Perempuan') ? widget.member.gender : 'Laki-laki';
-    _occupationController = TextEditingController(text: widget.member.occupation != '-' ? widget.member.occupation : '');
-    _educationController = TextEditingController(text: widget.member.education != '-' ? widget.member.education : '');
-    _familyStatusController = TextEditingController(text: widget.member.familyStatus != '-' ? widget.member.familyStatus : '');
-
-    // Data Ahli Waris
-    _heirNameController = TextEditingController(text: widget.member.heirName != '-' ? widget.member.heirName : '');
-    _heirRelationshipController = TextEditingController(text: widget.member.heirRelationship != '-' ? widget.member.heirRelationship : '');
-    _heirPlaceOfBirthController = TextEditingController(text: widget.member.heirPlaceOfBirth != '-' ? widget.member.heirPlaceOfBirth : '');
-    _heirDateOfBirthController = TextEditingController(text: widget.member.heirDateOfBirth != '-' ? widget.member.heirDateOfBirth : '');
-    _heirAddressController = TextEditingController(text: widget.member.heirAddress != '-' ? widget.member.heirAddress : '');
+    // 2. Muat data detail lengkap secara async dari API /api/members/:id
+    loadMemberDetail();
   }
 
   @override
@@ -407,6 +545,15 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        bottom: _isLoadingDetail
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(3),
+                child: LinearProgressIndicator(
+                  color: AppColors.accentBlue,
+                  backgroundColor: Colors.transparent,
+                ),
+              )
+            : null,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -611,6 +758,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
+                                key: ValueKey(_selectedGender),
                                 initialValue: _selectedGender,
                                 decoration: const InputDecoration(
                                   labelText: 'Jenis Kelamin',

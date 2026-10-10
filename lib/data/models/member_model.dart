@@ -14,13 +14,13 @@ class MemberModel {
   final String name;
   final String? placeOfBirth;  // place_of_birth
   final String? dateOfBirth;   // date_of_birth  (YYYY-MM-DD)
-  final String gender;
+  final String? gender;
   final String phone;
-  final String occupation;    // occupation
-  final String education;
-  final String familyStatus;  // family_status
-  final String churchSector;  // church_sector
-  final String address;
+  final String? occupation;    // occupation
+  final String? education;
+  final String? familyStatus;  // family_status
+  final String? churchSector;  // church_sector
+  final String? address;
   final String email;         // opsional – bisa kosong
   final String status;
   final bool hasBukuBiru;
@@ -28,11 +28,11 @@ class MemberModel {
   final String bukuPutihNumber;
 
   // ── Ahli Waris ─────────────────────────────────────────────
-  final String heirName;          // heir_name
-  final String heirRelationship;  // heir_relationship
-  final String heirPlaceOfBirth;  // heir_place_of_birth
-  final String heirDateOfBirth;   // heir_date_of_birth
-  final String heirAddress;       // heir_address
+  final String? heirName;          // heir_name
+  final String? heirRelationship;  // heir_relationship
+  final String? heirPlaceOfBirth;  // heir_place_of_birth
+  final String? heirDateOfBirth;   // heir_date_of_birth
+  final String? heirAddress;       // heir_address
 
   // ── Simpanan (Dinamis dari API) ─────────────────────────────
   final int principalSavings;   // principal_savings  (SP)
@@ -41,19 +41,27 @@ class MemberModel {
   final int griefFund;          // grief_fund         (Dana Duka)
   final int totalSaldo;         // = SP + SW + SS
 
-  // ── Alias lama supaya layar lain tidak error ────────────────
-  String get memberNo        => memberNumber;
-  String get church          => churchSector;
-  String? get tempatLahir    => placeOfBirth;
-  String? get tanggalLahir   => dateOfBirth;
-  String get namaAhliWaris   => heirName;
-  String get hubunganAhliWaris => heirRelationship;
-  String get alamatAhliWaris => heirAddress;
-  String get heirNameAlias   => heirName;
-  String? get bukuPutihNo    => (bukuPutihNumber != '-' && bukuPutihNumber.isNotEmpty && bukuPutihNumber != 'null' && !bukuPutihNumber.startsWith('{')) ? bukuPutihNumber : null;
-  int    get simpananPokok   => principalSavings;
-  int    get simpananWajib   => mandatorySavings;
-  int    get simpananSukarela => voluntarySavings;
+  // ── Alias lama & dwi-bahasa (Inggris - Indonesia) ───────────
+  String get memberNo              => memberNumber;
+  String get church                => churchSector ?? 'HKBP Dame Duri';
+  String? get tempatLahir          => placeOfBirth;
+  String? get tanggalLahir         => dateOfBirth;
+  String? get pekerjaan            => occupation;
+  String? get pendidikan           => education;
+  String? get statusKeluarga       => familyStatus;
+  String? get sektorGereja         => churchSector;
+  String? get alamat               => address;
+  String? get jenisKelamin         => gender;
+  String? get namaAhliWaris        => heirName;
+  String? get hubunganAhliWaris    => heirRelationship;
+  String? get tempatLahirAhliWaris => heirPlaceOfBirth;
+  String? get tanggalLahirAhliWaris => heirDateOfBirth;
+  String? get alamatAhliWaris      => heirAddress;
+  String? get heirNameAlias        => heirName;
+  String? get bukuPutihNo          => (bukuPutihNumber != '-' && bukuPutihNumber.isNotEmpty && bukuPutihNumber != 'null' && !bukuPutihNumber.startsWith('{')) ? bukuPutihNumber : null;
+  int    get simpananPokok         => principalSavings;
+  int    get simpananWajib         => mandatorySavings;
+  int    get simpananSukarela       => voluntarySavings;
 
   // ── Avatar ─────────────────────────────────────────────────
   final Color avatarBgColor;
@@ -66,23 +74,23 @@ class MemberModel {
     required this.name,
     this.placeOfBirth,
     this.dateOfBirth,
-    this.gender          = '-',
+    this.gender,
     required this.phone,
-    this.occupation      = '-',
-    this.education       = '-',
-    this.familyStatus    = '-',
-    required this.churchSector,
-    this.address         = '-',
+    this.occupation,
+    this.education,
+    this.familyStatus,
+    this.churchSector,
+    this.address,
     this.email           = '-',
     this.status          = 'aktif',
     this.hasBukuBiru     = true,
     this.hasBukuPutih    = true,
     this.bukuPutihNumber = '-',
-    this.heirName        = '-',
-    this.heirRelationship = '-',
-    this.heirPlaceOfBirth = '-',
-    this.heirDateOfBirth  = '-',
-    this.heirAddress      = '-',
+    this.heirName,
+    this.heirRelationship,
+    this.heirPlaceOfBirth,
+    this.heirDateOfBirth,
+    this.heirAddress,
     this.principalSavings = 0,
     this.mandatorySavings = 0,
     this.voluntarySavings = 0,
@@ -179,37 +187,37 @@ class MemberModel {
       sp + sw + ss,
     );
 
-    // ── Ahli Waris — prioritas: nested → flat ────────────────
-    final String heirName = _parseStr(
-      wObj?['nama'] ?? wObj?['heir_name'] ??
-      json['heir_name'] ?? json['nama_ahli_waris'],
+    // ── Ahli Waris — prioritas: nested → flat (English & Indonesian) ───
+    final String? heirName = _parseNullableStr(
+      wObj?['nama'] ?? wObj?['heir_name'] ?? wObj?['nama_ahli_waris'] ??
+      json['heir_name'] ?? json['nama_ahli_waris'] ?? json['ahli_waris_nama'],
     );
-    final String heirRel = _parseStr(
-      wObj?['hubungan'] ?? wObj?['heir_relationship'] ??
+    final String? heirRel = _parseNullableStr(
+      wObj?['hubungan'] ?? wObj?['heir_relationship'] ?? wObj?['hubungan_ahli_waris'] ??
       json['heir_relationship'] ?? json['heir_relation'] ?? json['hubungan_ahli_waris'],
     );
-    final String heirPob = _parseStr(
-      wObj?['tempat_lahir'] ?? wObj?['heir_place_of_birth'] ??
-      json['heir_place_of_birth'],
+    final String? heirPob = _parseNullableStr(
+      wObj?['tempat_lahir'] ?? wObj?['heir_place_of_birth'] ?? wObj?['tempat_lahir_ahli_waris'] ??
+      json['heir_place_of_birth'] ?? json['tempat_lahir_ahli_waris'] ?? json['heir_pob'],
     );
-    final String heirDob = parseDateOnly(
-      wObj?['tanggal_lahir'] ?? wObj?['heir_date_of_birth'] ??
-      json['heir_date_of_birth'] ?? json['heir_birth_date'] ?? json['tanggal_lahir_ahli_waris'],
-    ) ?? '-';
-    final String heirAddr = _parseStr(
-      wObj?['alamat'] ?? wObj?['heir_address'] ??
+    final String? heirDob = parseDateOnly(
+      wObj?['tanggal_lahir'] ?? wObj?['heir_date_of_birth'] ?? wObj?['tanggal_lahir_ahli_waris'] ??
+      json['heir_date_of_birth'] ?? json['heir_birth_date'] ?? json['tanggal_lahir_ahli_waris'] ?? json['heir_dob'],
+    );
+    final String? heirAddr = _parseNullableStr(
+      wObj?['alamat'] ?? wObj?['heir_address'] ?? wObj?['alamat_ahli_waris'] ??
       json['heir_address'] ?? json['alamat_ahli_waris'],
     );
 
     // ── Identitas ─────────────────────────────────────────────
     final String rawPhone = _parseStr(
-      json['phone'] ?? json['no_hp'] ?? json['no_handphone'],
+      json['phone'] ?? json['no_hp'] ?? json['no_handphone'] ?? json['telepon'],
       '',
     );
     final String rawEmail = _parseStr(json['email'], '-');
 
     final String memberNumber = _parseStr(
-      json['member_number'] ?? json['member_no'] ?? json['no_anggota'],
+      json['member_number'] ?? json['member_no'] ?? json['no_anggota'] ?? json['nia'],
       json['id']?.toString() ?? '-',
     );
 
@@ -238,20 +246,19 @@ class MemberModel {
     return MemberModel(
       id:             json['id']?.toString() ?? '',
       memberNumber:   memberNumber,
-      nik:            _parseStr(json['nik'] ?? json['no_ktp']),
+      nik:            _parseStr(json['nik'] ?? json['no_ktp'] ?? json['ktp']),
       name:           _parseStr(json['name'] ?? json['nama'], 'Tanpa Nama'),
       placeOfBirth:   _parseNullableStr(json['place_of_birth'] ?? json['tempat_lahir'] ?? json['birth_place'] ?? json['tempatLahir']),
       dateOfBirth:    parseDateOnly(json['date_of_birth'] ?? json['tanggal_lahir'] ?? json['birth_date'] ?? json['tanggalLahir']),
-      gender:         _parseStr(json['gender']),
+      gender:         _parseNullableStr(json['gender'] ?? json['jenis_kelamin'] ?? json['sex']),
       phone:          rawPhone.isNotEmpty && rawPhone != '-' ? rawPhone : '',
-      occupation:     _parseStr(json['occupation'] ?? json['job'] ?? json['pekerjaan']),
-      education:      _parseStr(json['education'] ?? json['pendidikan']),
-      familyStatus:   _parseStr(json['family_status'] ?? json['status_keluarga']),
-      churchSector:   _parseStr(
-        json['church_sector'] ?? json['church_unit'] ?? json['church'] ?? json['address'],
-        'HKBP Dame Duri',
-      ),
-      address:        _parseStr(json['address'] ?? json['alamat']),
+      occupation:     _parseNullableStr(json['occupation'] ?? json['pekerjaan'] ?? json['job']),
+      education:      _parseNullableStr(json['education'] ?? json['pendidikan']),
+      familyStatus:   _parseNullableStr(json['family_status'] ?? json['status_keluarga']),
+      churchSector:   _parseNullableStr(
+        json['church_sector'] ?? json['sektor_gereja'] ?? json['church_unit'] ?? json['church'] ?? json['unit_gereja'],
+      ) ?? 'HKBP Dame Duri',
+      address:        _parseNullableStr(json['address'] ?? json['alamat']),
       email:          rawEmail.contains('@') ? rawEmail : '-',
       status:         _parseStr(json['status'], 'aktif'),
       hasBukuBiru:     hasBiru,
@@ -273,24 +280,36 @@ class MemberModel {
   }
 
   // ────────────────────────────────────────────────────────────
-  // toJson — key selaras dengan kolom DB Laravel terbaru
+  // toJson & toMap — key selaras dengan kolom DB Laravel terbaru
   // ────────────────────────────────────────────────────────────
+  Map<String, dynamic> toMap() => toJson();
+
   Map<String, dynamic> toJson() => {
     'id':               id,
     'member_number':    memberNumber,
+    'member_no':        memberNumber,
     'nik':              nik,
+    'no_ktp':           nik,
     'name':             name,
+    'nama':             name,
     'place_of_birth':   placeOfBirth,
     'tempat_lahir':     tempatLahir,
     'date_of_birth':    dateOfBirth,
     'tanggal_lahir':    tanggalLahir,
     'gender':           gender,
+    'jenis_kelamin':    jenisKelamin,
     'phone':            phone,
+    'no_hp':            phone,
     'occupation':       occupation,
+    'pekerjaan':        pekerjaan,
     'education':        education,
+    'pendidikan':       pendidikan,
     'family_status':    familyStatus,
+    'status_keluarga':  statusKeluarga,
     'church_sector':    churchSector,
+    'sektor_gereja':    sektorGereja,
     'address':          address,
+    'alamat':           alamat,
     'email':            email,
     'status':           status,
     'has_buku_biru':    hasBukuBiru,
@@ -299,10 +318,15 @@ class MemberModel {
     'no_rekening_buku_putih': bukuPutihNumber,
     'buku_putih_account_no': bukuPutihNumber,
     'heir_name':        heirName,
+    'nama_ahli_waris':  namaAhliWaris,
     'heir_relationship': heirRelationship,
+    'hubungan_ahli_waris': hubunganAhliWaris,
     'heir_place_of_birth': heirPlaceOfBirth,
+    'tempat_lahir_ahli_waris': tempatLahirAhliWaris,
     'heir_date_of_birth':  heirDateOfBirth,
+    'tanggal_lahir_ahli_waris': tanggalLahirAhliWaris,
     'heir_address':     heirAddress,
+    'alamat_ahli_waris': alamatAhliWaris,
     'principal_savings': principalSavings,
     'mandatory_savings': mandatorySavings,
     'voluntary_savings': voluntarySavings,
