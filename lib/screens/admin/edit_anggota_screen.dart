@@ -83,8 +83,16 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
     _churchController = TextEditingController(text: widget.member.churchSector != '-' ? widget.member.churchSector : '');
 
     // Data Pribadi
-    _placeOfBirthController = TextEditingController(text: widget.member.placeOfBirth != '-' ? widget.member.placeOfBirth : '');
-    _dateOfBirthController = TextEditingController(text: widget.member.dateOfBirth != '-' ? widget.member.dateOfBirth : '');
+    final String initialPlaceOfBirth = widget.member.placeOfBirth ?? widget.member.tempatLahir ?? '';
+    final String? initialDateOfBirthRaw = widget.member.dateOfBirth ?? widget.member.tanggalLahir;
+    final String initialDateOfBirth = initialDateOfBirthRaw != null && initialDateOfBirthRaw != '-' && initialDateOfBirthRaw != 'null'
+        ? (MemberModel.parseDateOnly(initialDateOfBirthRaw) ?? initialDateOfBirthRaw)
+        : '';
+
+    _placeOfBirthController = TextEditingController(
+      text: initialPlaceOfBirth != '-' && initialPlaceOfBirth != 'null' ? initialPlaceOfBirth : '',
+    );
+    _dateOfBirthController = TextEditingController(text: initialDateOfBirth);
     _selectedGender = (widget.member.gender == 'Laki-laki' || widget.member.gender == 'Perempuan') ? widget.member.gender : 'Laki-laki';
     _occupationController = TextEditingController(text: widget.member.occupation != '-' ? widget.member.occupation : '');
     _educationController = TextEditingController(text: widget.member.education != '-' ? widget.member.education : '');
@@ -156,6 +164,22 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
           ? null
           : _bukuPutihController.text.trim();
 
+      final String placeOfBirthVal = _placeOfBirthController.text.trim();
+
+      // Format tanggal lahir memastikan YYYY-MM-DD
+      final String rawDob = _dateOfBirthController.text.trim();
+      final String? dateOfBirthVal = rawDob.isNotEmpty
+          ? (MemberModel.parseDateOnly(rawDob) ?? rawDob)
+          : null;
+
+      final String heirPlaceOfBirthVal = _heirPlaceOfBirthController.text.trim();
+
+      // Format tanggal lahir ahli waris memastikan YYYY-MM-DD
+      final String rawHeirDob = _heirDateOfBirthController.text.trim();
+      final String? heirDateOfBirthVal = rawHeirDob.isNotEmpty
+          ? (MemberModel.parseDateOnly(rawHeirDob) ?? rawHeirDob)
+          : null;
+
       final body = {
         'nik': _nikController.text.trim(),
         'no_ktp': _nikController.text.trim(),
@@ -175,17 +199,36 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
         'church_unit': _churchController.text.trim(),
         'church_sector': _churchController.text.trim(),
         'sektor_gereja': _churchController.text.trim(),
-        'tempat_lahir': _placeOfBirthController.text.trim(),
-        'tanggal_lahir': _dateOfBirthController.text.trim(),
+
+        // 🌟 Tempat Lahir (place_of_birth & alias tempat_lahir)
+        'place_of_birth': placeOfBirthVal,
+        'tempat_lahir': placeOfBirthVal,
+        'birth_place': placeOfBirthVal,
+
+        // 🌟 Tanggal Lahir (date_of_birth format YYYY-MM-DD & alias tanggal_lahir)
+        'date_of_birth': dateOfBirthVal,
+        'tanggal_lahir': dateOfBirthVal,
+        'birth_date': dateOfBirthVal,
+
         'jenis_kelamin': _selectedGender,
+        'gender': _selectedGender,
         'pekerjaan': _occupationController.text.trim(),
+        'occupation': _occupationController.text.trim(),
         'pendidikan': _educationController.text.trim(),
+        'education': _educationController.text.trim(),
         'status_keluarga': _familyStatusController.text.trim(),
+        'family_status': _familyStatusController.text.trim(),
+
         'nama_ahli_waris': _heirNameController.text.trim(),
+        'heir_name': _heirNameController.text.trim(),
         'hubungan_ahli_waris': _heirRelationshipController.text.trim(),
-        'tempat_lahir_ahli_waris': _heirPlaceOfBirthController.text.trim(),
-        'tanggal_lahir_ahli_waris': _heirDateOfBirthController.text.trim(),
+        'heir_relationship': _heirRelationshipController.text.trim(),
+        'tempat_lahir_ahli_waris': heirPlaceOfBirthVal,
+        'heir_place_of_birth': heirPlaceOfBirthVal,
+        'tanggal_lahir_ahli_waris': heirDateOfBirthVal,
+        'heir_date_of_birth': heirDateOfBirthVal,
         'alamat_ahli_waris': _heirAddressController.text.trim(),
+        'heir_address': _heirAddressController.text.trim(),
       };
 
       debugPrint('[UPDATE_PROFILE_LOG] Sending PUT to: $uri with body: ${jsonEncode(body)}');
@@ -568,7 +611,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _selectedGender,
+                                initialValue: _selectedGender,
                                 decoration: const InputDecoration(
                                   labelText: 'Jenis Kelamin',
                                   prefixIcon: Icon(Icons.people_outline, color: AppColors.primary),

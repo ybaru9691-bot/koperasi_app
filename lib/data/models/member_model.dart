@@ -12,8 +12,8 @@ class MemberModel {
   final String memberNumber;  // member_number
   final String nik;
   final String name;
-  final String placeOfBirth;  // place_of_birth
-  final String dateOfBirth;   // date_of_birth  (YYYY-MM-DD)
+  final String? placeOfBirth;  // place_of_birth
+  final String? dateOfBirth;   // date_of_birth  (YYYY-MM-DD)
   final String gender;
   final String phone;
   final String occupation;    // occupation
@@ -44,6 +44,8 @@ class MemberModel {
   // ── Alias lama supaya layar lain tidak error ────────────────
   String get memberNo        => memberNumber;
   String get church          => churchSector;
+  String? get tempatLahir    => placeOfBirth;
+  String? get tanggalLahir   => dateOfBirth;
   String get namaAhliWaris   => heirName;
   String get hubunganAhliWaris => heirRelationship;
   String get alamatAhliWaris => heirAddress;
@@ -62,8 +64,8 @@ class MemberModel {
     required this.memberNumber,
     required this.nik,
     required this.name,
-    this.placeOfBirth    = '-',
-    this.dateOfBirth     = '-',
+    this.placeOfBirth,
+    this.dateOfBirth,
     this.gender          = '-',
     required this.phone,
     this.occupation      = '-',
@@ -91,7 +93,7 @@ class MemberModel {
   });
 
   // ────────────────────────────────────────────────────────────
-  // HELPERS PARSIG BULLETPROOF (aman dari null / wrong-type)
+  // HELPERS PARSING BULLETPROOF (aman dari null / wrong-type)
   // ────────────────────────────────────────────────────────────
 
   /// Konversi apa pun → int tanpa melempar exception, aman terhadap string desimal/angka
@@ -110,17 +112,36 @@ class MemberModel {
     return s.isNotEmpty ? s : fallback;
   }
 
-  /// Helper parser khusus tanggal (YYYY-MM-DD), membersihkan timestamp ISO-8601
+  /// Konversi apa pun → String? tanpa melempar exception (mengembalikan null jika kosong / '-')
+  static String? _parseNullableStr(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty || s == '-' || s == 'null') return null;
+    return s;
+  }
+
+  /// Helper parser khusus tanggal (YYYY-MM-DD), membersihkan timestamp ISO-8601 & SQL
   static String? parseDateOnly(dynamic val) {
     if (val == null) return null;
     final str = val.toString().trim();
     if (str.isEmpty || str == '-' || str == 'null') return null;
 
-    // Jika backend masih mengirim format ISO-8601 (mengandung 'T'), ambil hanya bagian tanggalnya
-    if (str.contains('T')) {
-      return str.split('T')[0];
+    // Jika backend mengirim format ISO-8601 (T) atau SQL timestamp (spasi), ambil tanggalnya
+    String datePart = str;
+    if (datePart.contains('T')) {
+      datePart = datePart.split('T')[0].trim();
+    } else if (datePart.contains(' ')) {
+      datePart = datePart.split(' ')[0].trim();
     }
-    return str;
+
+    try {
+      final dt = DateTime.tryParse(datePart);
+      if (dt != null) {
+        return "${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+      }
+    } catch (_) {}
+
+    return datePart.isNotEmpty ? datePart : null;
   }
 
   // ────────────────────────────────────────────────────────────
@@ -219,8 +240,8 @@ class MemberModel {
       memberNumber:   memberNumber,
       nik:            _parseStr(json['nik'] ?? json['no_ktp']),
       name:           _parseStr(json['name'] ?? json['nama'], 'Tanpa Nama'),
-      placeOfBirth:   _parseStr(json['place_of_birth'] ?? json['birth_place']),
-      dateOfBirth:    parseDateOnly(json['date_of_birth'] ?? json['birth_date'] ?? json['tanggal_lahir']) ?? '-',
+      placeOfBirth:   _parseNullableStr(json['place_of_birth'] ?? json['tempat_lahir'] ?? json['birth_place'] ?? json['tempatLahir']),
+      dateOfBirth:    parseDateOnly(json['date_of_birth'] ?? json['tanggal_lahir'] ?? json['birth_date'] ?? json['tanggalLahir']),
       gender:         _parseStr(json['gender']),
       phone:          rawPhone.isNotEmpty && rawPhone != '-' ? rawPhone : '',
       occupation:     _parseStr(json['occupation'] ?? json['job'] ?? json['pekerjaan']),
@@ -260,7 +281,9 @@ class MemberModel {
     'nik':              nik,
     'name':             name,
     'place_of_birth':   placeOfBirth,
+    'tempat_lahir':     tempatLahir,
     'date_of_birth':    dateOfBirth,
+    'tanggal_lahir':    tanggalLahir,
     'gender':           gender,
     'phone':            phone,
     'occupation':       occupation,

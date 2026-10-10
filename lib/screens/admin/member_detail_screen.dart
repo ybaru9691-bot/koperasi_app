@@ -323,8 +323,8 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
               items: [
                 _infoTile('No. HP', phone, Icons.phone_android_outlined),
                 _infoTile('Email', email, Icons.email_outlined),
-                _infoTile('Tempat Lahir', m.placeOfBirth, Icons.location_city_outlined),
-                _infoTile('Tgl Lahir', m.dateOfBirth, Icons.cake_outlined),
+                _infoTile('Tempat Lahir', m.placeOfBirth ?? '-', Icons.location_city_outlined),
+                _infoTile('Tgl Lahir', m.dateOfBirth ?? '-', Icons.cake_outlined),
                 _infoTile('Jenis Kelamin', m.gender, Icons.wc_outlined),
                 _infoTile('Pekerjaan', m.occupation, Icons.work_outline),
                 _infoTile('Pendidikan', m.education, Icons.school_outlined),
