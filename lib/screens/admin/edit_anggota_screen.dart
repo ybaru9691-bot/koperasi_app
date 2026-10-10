@@ -36,6 +36,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
   // Data Pribadi
   late final TextEditingController _placeOfBirthController;
   late final TextEditingController _dateOfBirthController;
+  late final TextEditingController _genderController;
   String? _selectedGender;
   late final TextEditingController _occupationController;
   late final TextEditingController _educationController;
@@ -119,6 +120,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
     }
 
     final String g = member.gender ?? member.jenisKelamin ?? '';
+    _genderController.text = g;
     if (g == 'Laki-laki' || g == 'Perempuan') {
       _selectedGender = g;
     } else if (g.toLowerCase() == 'male' || g.toLowerCase() == 'l') {
@@ -223,6 +225,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
 
     _placeOfBirthController = TextEditingController();
     _dateOfBirthController = TextEditingController();
+    _genderController = TextEditingController();
     _occupationController = TextEditingController();
     _educationController = TextEditingController();
     _familyStatusController = TextEditingController();
@@ -255,6 +258,7 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
     _churchController.dispose();
     _placeOfBirthController.dispose();
     _dateOfBirthController.dispose();
+    _genderController.dispose();
     _occupationController.dispose();
     _educationController.dispose();
     _familyStatusController.dispose();
@@ -386,6 +390,62 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        // 1. Ambil data member terbaru dari response API
+        Map<String, dynamic> updatedData = {};
+        try {
+          final dynamic decoded = jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            if (decoded['data'] is Map<String, dynamic>) {
+              updatedData = decoded['data'] as Map<String, dynamic>;
+            } else if (decoded['member'] is Map<String, dynamic>) {
+              updatedData = decoded['member'] as Map<String, dynamic>;
+            } else {
+              updatedData = decoded;
+            }
+          }
+        } catch (_) {}
+
+        final dynamic heirObj = updatedData['ahli_waris'] ?? updatedData['heir'];
+        final Map<String, dynamic> heirMap = (heirObj is Map<String, dynamic>) ? heirObj : {};
+
+        // 2. Perbarui nilai TextEditingController di form menggunakan data terbaru tersebut di dalam setState:
+        setState(() {
+          _placeOfBirthController.text = (updatedData['place_of_birth'] ?? updatedData['tempat_lahir'])?.toString() ?? _placeOfBirthController.text;
+
+          final String? rawDob = (updatedData['date_of_birth'] ?? updatedData['tanggal_lahir'])?.toString();
+          _dateOfBirthController.text = (rawDob != null && rawDob.isNotEmpty)
+              ? (MemberModel.parseDateOnly(rawDob) ?? rawDob)
+              : _dateOfBirthController.text;
+
+          _genderController.text = (updatedData['gender'] ?? updatedData['jenis_kelamin'])?.toString() ?? _genderController.text;
+          final String currentG = _genderController.text;
+          if (currentG == 'Laki-laki' || currentG == 'Perempuan') {
+            _selectedGender = currentG;
+          } else if (currentG.toLowerCase() == 'male' || currentG.toLowerCase() == 'l') {
+            _selectedGender = 'Laki-laki';
+          } else if (currentG.toLowerCase() == 'female' || currentG.toLowerCase() == 'p') {
+            _selectedGender = 'Perempuan';
+          }
+
+          _occupationController.text = (updatedData['occupation'] ?? updatedData['pekerjaan'])?.toString() ?? _occupationController.text;
+          _educationController.text = (updatedData['education'] ?? updatedData['pendidikan'])?.toString() ?? _educationController.text;
+          _familyStatusController.text = (updatedData['family_status'] ?? updatedData['status_keluarga'])?.toString() ?? _familyStatusController.text;
+          _churchSectorController.text = (updatedData['church_sector'] ?? updatedData['sektor_gereja'] ?? updatedData['church_unit'])?.toString() ?? _churchSectorController.text;
+          _addressController.text = (updatedData['address'] ?? updatedData['alamat'])?.toString() ?? _addressController.text;
+
+          // Data Ahli Waris
+          _heirNameController.text = (updatedData['heir_name'] ?? updatedData['nama_ahli_waris'] ?? heirMap['nama'] ?? heirMap['name'])?.toString() ?? _heirNameController.text;
+          _heirRelationshipController.text = (updatedData['heir_relationship'] ?? updatedData['hubungan_ahli_waris'] ?? heirMap['hubungan'] ?? heirMap['relationship'])?.toString() ?? _heirRelationshipController.text;
+          _heirPlaceOfBirthController.text = (updatedData['heir_place_of_birth'] ?? updatedData['tempat_lahir_ahli_waris'] ?? heirMap['tempat_lahir'])?.toString() ?? _heirPlaceOfBirthController.text;
+
+          final String? rawHeirDob = (updatedData['heir_date_of_birth'] ?? updatedData['tanggal_lahir_ahli_waris'] ?? heirMap['tanggal_lahir'])?.toString();
+          _heirDateOfBirthController.text = (rawHeirDob != null && rawHeirDob.isNotEmpty)
+              ? (MemberModel.parseDateOnly(rawHeirDob) ?? rawHeirDob)
+              : _heirDateOfBirthController.text;
+
+          _heirAddressController.text = (updatedData['heir_address'] ?? updatedData['alamat_ahli_waris'] ?? heirMap['alamat'])?.toString() ?? _heirAddressController.text;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -767,7 +827,10 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
                                 ],
                                 onChanged: (val) {
                                   if (val != null) {
-                                    setState(() => _selectedGender = val);
+                                    setState(() {
+                                      _selectedGender = val;
+                                      _genderController.text = val;
+                                    });
                                   }
                                 },
                               ),
