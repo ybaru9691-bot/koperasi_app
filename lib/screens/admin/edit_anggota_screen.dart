@@ -400,10 +400,6 @@ class _EditAnggotaScreenState extends State<EditAnggotaScreen> {
             duration: Duration(seconds: 3),
           ),
         );
-
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context, true);
-        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
