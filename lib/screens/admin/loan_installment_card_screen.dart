@@ -95,6 +95,8 @@ class InstallmentRecord {
   final String tellerName;
   final int interestArrears;
   final int currentInterest;
+  final String? paidAt;
+  final String? receiptNumber;
 
   const InstallmentRecord({
     this.id,
@@ -110,17 +112,61 @@ class InstallmentRecord {
     this.tellerName = 'Kasir',
     this.interestArrears = 0,
     this.currentInterest = 0,
+    this.paidAt,
+    this.receiptNumber,
   });
+
+  /// Pengecekan status lunas yang aman dan fleksibel:
+  /// - isPaid bernilai true
+  /// - status bernilai 'paid' / 'lunas' (case-insensitive)
+  /// - paidAt != null dan tidak kosong / '-'
+  /// - receiptNumber != null dan tidak kosong / '-'
+  /// - proofCode tidak kosong dan bukan '-'
+  bool get isEffectivelyPaid {
+    if (isPaid) return true;
+    final s = status.trim().toLowerCase();
+    if (s == 'paid' || s == 'lunas' || s == 'sudah_bayar' || s == 'selesai') return true;
+    if (paidAt != null && paidAt!.trim().isNotEmpty && paidAt!.trim() != '-' && paidAt!.trim() != 'null') return true;
+    if (receiptNumber != null && receiptNumber!.trim().isNotEmpty && receiptNumber!.trim() != '-' && receiptNumber!.trim() != 'null') return true;
+    if (proofCode.trim().isNotEmpty && proofCode.trim() != '-' && proofCode.trim() != 'null') return true;
+    return false;
+  }
 
   factory InstallmentRecord.fromJson(Map<String, dynamic> j) {
     int i(dynamic v) => int.tryParse(v?.toString() ?? '0') ?? 0;
-    final rawStatus = j['status']?.toString() ?? '';
-    final isPaidValue = j['is_paid'] == true ||
+
+    // 1. Parsing status
+    final rawStatus = (j['status'] ?? j['payment_status'] ?? j['status_pembayaran'])?.toString().trim() ?? '';
+
+    // 2. Parsing paid_at
+    final rawPaidAt = j['paid_at'] ?? j['tanggal_bayar'] ?? j['transaction_date'] ?? j['payment_date'] ?? j['paid_date'] ?? j['transaction']?['transaction_date'];
+    final paidAtStr = rawPaidAt?.toString().trim();
+    final String? parsedPaidAt = (paidAtStr != null && paidAtStr.isNotEmpty && paidAtStr != '-' && paidAtStr != 'null') ? paidAtStr : null;
+
+    // 3. Parsing receipt_number / no_bukti
+    final rawReceipt = j['receipt_number'] ?? j['no_bukti'] ?? j['proof_code'] ?? j['proof_number'] ?? j['transaction']?['receipt_number'] ?? j['transaction']?['proof_code'];
+    final receiptStr = rawReceipt?.toString().trim();
+    final String? parsedReceipt = (receiptStr != null && receiptStr.isNotEmpty && receiptStr != '-' && receiptStr != 'null') ? receiptStr : null;
+
+    // 4. Parsing teller / paraf
+    final rawTeller = j['teller_name'] ?? j['paraf'] ?? j['kasir'] ?? j['admin'] ?? j['created_by_name'] ?? j['user']?['name'] ?? j['transaction']?['creator']?['name'];
+    final String tellerStr = rawTeller?.toString().trim() ?? '';
+
+    // 5. Evaluasi Fleksibel & Aman Status Lunas
+    final bool isStatusPaid = rawStatus.toLowerCase() == 'paid' ||
+        rawStatus.toLowerCase() == 'lunas' ||
+        rawStatus.toLowerCase() == 'sudah_bayar' ||
+        rawStatus.toLowerCase() == 'selesai';
+
+    final bool isPaidBool = j['is_paid'] == true ||
         j['is_paid'] == 1 ||
         j['is_paid'] == '1' ||
-        j['is_paid'] == 'true' ||
-        rawStatus.toLowerCase() == 'paid' ||
-        rawStatus.toLowerCase() == 'lunas';
+        j['is_paid'] == 'true';
+
+    final bool hasPaidAt = parsedPaidAt != null;
+    final bool hasReceipt = parsedReceipt != null && parsedReceipt.isNotEmpty;
+
+    final isPaidValue = isPaidBool || isStatusPaid || hasPaidAt || hasReceipt;
 
     final parsedInterest = i(j['jasa_pinjaman'] ?? j['interest_amount'] ?? j['interest_paid'] ?? j['jasa']);
     final parsedArrears = i(j['interest_arrears'] ?? j['tunggakan_bunga'] ?? j['remaining_interest'] ?? j['sisa_bunga_kemarin'] ?? j['bunga_menunggak']);
@@ -132,17 +178,21 @@ class InstallmentRecord {
     return InstallmentRecord(
       id: j['id'],
       no: i(j['angsuran_ke'] ?? j['installment_order'] ?? j['installment_number'] ?? j['no']),
-      date: j['tanggal_bayar'] ?? j['date'] ?? j['transaction_date'] ?? j['paid_at'] ?? j['payment_date'] ?? '-',
-      proofCode: j['no_bukti'] ?? j['receipt_number'] ?? j['proof_code'] ?? '-',
+      date: parsedPaidAt ?? j['tanggal_bayar'] ?? j['date'] ?? j['transaction_date'] ?? j['payment_date'] ?? '-',
+      proofCode: parsedReceipt ?? j['no_bukti'] ?? j['proof_code'] ?? '-',
       principalPaid: i(j['angsuran_pokok'] ?? j['principal_amount'] ?? j['principal_paid'] ?? j['pokok']),
       remainingBalance: i(j['sisa_pokok_akhir'] ?? j['ending_balance'] ?? j['remaining_balance'] ?? j['sisa_pokok']),
       interestPaid: parsedInterest,
       penaltyPaid: i(j['denda'] ?? j['late_fee'] ?? j['penalty_fee'] ?? j['penalty_amount']),
-      status: rawStatus.isNotEmpty ? rawStatus : (isPaidValue ? 'paid' : 'unpaid'),
+      status: isPaidValue
+          ? (isStatusPaid ? rawStatus : 'paid')
+          : (rawStatus.isNotEmpty ? rawStatus : 'unpaid'),
       isPaid: isPaidValue,
-      tellerName: j['teller_name'] ?? j['paraf'] ?? 'Kasir',
+      tellerName: tellerStr.isNotEmpty ? tellerStr : 'Kasir',
       interestArrears: parsedArrears,
       currentInterest: parsedCurrent,
+      paidAt: parsedPaidAt,
+      receiptNumber: parsedReceipt,
     );
   }
 }
@@ -452,7 +502,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
       final paid = _header!.amount - _header!.remainingPrincipal;
       return paid < 0 ? 0 : paid;
     }
-    return _installments.where((item) => item.isPaid)
+    return _installments.where((item) => item.isEffectivelyPaid)
         .fold(0, (sum, item) => sum + item.principalPaid);
   }
 
@@ -925,7 +975,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
     // Temukan angsuran pertama yang statusnya unpaid / belum lunas
     InstallmentRecord? nextUnpaid;
     try {
-      nextUnpaid = _installments.firstWhere((rec) => !rec.isPaid);
+      nextUnpaid = _installments.firstWhere((rec) => !rec.isEffectivelyPaid);
     } catch (_) {
       nextUnpaid = null;
     }
@@ -2712,7 +2762,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
 
     InstallmentRecord? firstUnpaid;
     try {
-      firstUnpaid = _installments.firstWhere((rec) => !rec.isPaid);
+      firstUnpaid = _installments.firstWhere((rec) => !rec.isEffectivelyPaid);
     } catch (_) {
       firstUnpaid = null;
     }
@@ -2789,8 +2839,8 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
 
     // Baris 2..N: Catatan Angsuran & Penurunan Saldo Dinamis
     for (final rec in _installments) {
-      final bool isPaid = rec.isPaid;
-      final bool isFirstUnpaid = firstUnpaid != null && rec.no == firstUnpaid.no;
+      final bool isPaid = rec.isEffectivelyPaid;
+      final bool isFirstUnpaid = !isPaid && firstUnpaid != null && rec.no == firstUnpaid.no;
 
       tableRows.add(
         DataRow(
@@ -2805,7 +2855,9 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
             // 2. No. Bukti
             DataCell(
               Text(
-                rec.proofCode.isNotEmpty && rec.proofCode != '-' ? rec.proofCode : 'KM-${rec.no}',
+                rec.proofCode.isNotEmpty && rec.proofCode != '-'
+                    ? rec.proofCode
+                    : (isPaid ? 'KM-${rec.no}' : '-'),
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.adminNavy),
               ),
             ),
@@ -2875,33 +2927,33 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
             ),
             // 9. Paraf (Teller)
             DataCell(
-              _isAdmin && isFirstUnpaid
-                  ? ElevatedButton(
-                      onPressed: _showInputAngsuranModal,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD97706),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              isPaid
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
                       ),
-                      child: const Text(
-                        'Bayar Angsuran',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                      child: Text(
+                        '✓ ${rec.tellerName.isNotEmpty && rec.tellerName != "-" ? rec.tellerName : "Kasir"} (Lunas)',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
                       ),
                     )
-                  : (isPaid
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                  : (_isAdmin && isFirstUnpaid
+                      ? ElevatedButton(
+                          onPressed: _showInputAngsuranModal,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD97706),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                           ),
-                          child: Text(
-                            '✓ ${rec.tellerName.isNotEmpty && rec.tellerName != "-" ? rec.tellerName : "Kasir"} (Lunas)',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                          child: const Text(
+                            'Bayar Angsuran',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         )
                       : _buildStatusBadge(rec.status, isPaid: isPaid)),

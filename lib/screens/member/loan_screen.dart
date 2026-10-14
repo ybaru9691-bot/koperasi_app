@@ -180,7 +180,11 @@ class LoanInstallmentItemModel {
     }
 
     final rawStatus = (json['status'] ?? '').toString().toLowerCase();
-    final bool paid = json['is_paid'] == true || rawStatus == 'paid' || rawStatus == 'lunas';
+    final rawPaidAt = json['paid_at'] ?? json['payment_date'] ?? json['tanggal_bayar'];
+    final rawReceipt = json['receipt_number'] ?? json['no_bukti'] ?? json['proof_code'];
+    final bool hasPaidAt = rawPaidAt != null && rawPaidAt.toString().isNotEmpty && rawPaidAt.toString() != 'null' && rawPaidAt.toString() != '-';
+    final bool hasReceipt = rawReceipt != null && rawReceipt.toString().isNotEmpty && rawReceipt.toString() != 'null' && rawReceipt.toString() != '-';
+    final bool paid = json['is_paid'] == true || rawStatus == 'paid' || rawStatus == 'lunas' || hasPaidAt || hasReceipt;
 
     return LoanInstallmentItemModel(
       id: json['id']?.toString() ?? '',
