@@ -95,6 +95,8 @@ class InstallmentRecord {
   final String tellerName;
   final int interestArrears;
   final int currentInterest;
+  final int scheduledInterest;
+  final int arrearsInterestBilled;
   final String? paidAt;
   final String? receiptNumber;
 
@@ -112,6 +114,8 @@ class InstallmentRecord {
     this.tellerName = 'Kasir',
     this.interestArrears = 0,
     this.currentInterest = 0,
+    this.scheduledInterest = 0,
+    this.arrearsInterestBilled = 0,
     this.paidAt,
     this.receiptNumber,
   });
@@ -173,8 +177,8 @@ bool get isEffectivelyPaid {
     final isPaidValue = isPaidBool || isStatusPaid || hasPaidAt || hasReceipt;
 
     final parsedInterest = i(j['jasa_pinjaman'] ?? j['interest_amount'] ?? j['interest_paid'] ?? j['jasa']);
-    final parsedArrears = i(j['interest_arrears'] ?? j['tunggakan_bunga'] ?? j['remaining_interest'] ?? j['sisa_bunga_kemarin'] ?? j['bunga_menunggak']);
-    int parsedCurrent = i(j['current_interest'] ?? j['bunga_berjalan'] ?? j['bunga_bulan_ini']);
+    final parsedArrears = i(j['arrears_interest_billed'] ?? j['carried_interest_arrears'] ?? j['tunggakan_bunga'] ?? j['interest_arrears'] ?? j['remaining_interest'] ?? j['sisa_bunga_kemarin'] ?? j['bunga_menunggak']);
+    int parsedCurrent = i(j['scheduled_interest'] ?? j['current_month_interest'] ?? j['bunga_berjalan'] ?? j['current_interest'] ?? j['bunga_bulan_ini']);
     if (parsedCurrent == 0 && parsedInterest > 0) {
       parsedCurrent = parsedInterest > parsedArrears ? parsedInterest - parsedArrears : parsedInterest;
     }
@@ -195,6 +199,8 @@ bool get isEffectivelyPaid {
       tellerName: tellerStr.isNotEmpty ? tellerStr : 'Kasir',
       interestArrears: parsedArrears,
       currentInterest: parsedCurrent,
+      scheduledInterest: parsedCurrent,
+      arrearsInterestBilled: parsedArrears,
       paidAt: parsedPaidAt,
       receiptNumber: parsedReceipt,
     );
@@ -2909,13 +2915,48 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
             ),
             // 7. Jasa (Rp)
             DataCell(
-              Text(
-                rec.interestPaid > 0 ? _formatRupiah(rec.interestPaid) : '-',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: rec.interestPaid > 0 ? FontWeight.w600 : FontWeight.normal,
-                  color: rec.interestPaid > 0 ? const Color(0xFF0284C7) : AppColors.textMuted,
-                ),
+              Builder(
+                builder: (_) {
+                  if (rec.arrearsInterestBilled > 0) {
+                    final int baseScheduled = rec.scheduledInterest > 0
+                        ? rec.scheduledInterest
+                        : (rec.interestPaid > rec.arrearsInterestBilled ? rec.interestPaid - rec.arrearsInterestBilled : rec.interestPaid);
+                    final int totalInterest = rec.interestPaid > 0
+                        ? rec.interestPaid
+                        : (baseScheduled + rec.arrearsInterestBilled);
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_formatRupiah(baseScheduled)} + ${_formatRupiah(rec.arrearsInterestBilled)}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                        Text(
+                          'Total: ${_formatRupiah(totalInterest)}',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Text(
+                    rec.interestPaid > 0
+                        ? _formatRupiah(rec.interestPaid)
+                        : (rec.scheduledInterest > 0 ? _formatRupiah(rec.scheduledInterest) : '-'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: (rec.interestPaid > 0 || rec.scheduledInterest > 0) ? FontWeight.w600 : FontWeight.normal,
+                      color: (rec.interestPaid > 0 || rec.scheduledInterest > 0) ? const Color(0xFF0284C7) : AppColors.textMuted,
+                    ),
+                  );
+                },
               ),
             ),
             // 8. Denda (Rp)
