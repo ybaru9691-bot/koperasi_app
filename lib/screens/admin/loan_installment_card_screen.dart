@@ -93,6 +93,8 @@ class InstallmentRecord {
   final String status; // 'paid', 'unpaid', 'late', 'partially_paid'
   final bool isPaid;
   final String tellerName;
+  final int interestArrears;
+  final int currentInterest;
 
   const InstallmentRecord({
     this.id,
@@ -106,6 +108,8 @@ class InstallmentRecord {
     this.status = 'unpaid',
     this.isPaid = false,
     this.tellerName = 'Kasir',
+    this.interestArrears = 0,
+    this.currentInterest = 0,
   });
 
   factory InstallmentRecord.fromJson(Map<String, dynamic> j) {
@@ -118,6 +122,13 @@ class InstallmentRecord {
         rawStatus.toLowerCase() == 'paid' ||
         rawStatus.toLowerCase() == 'lunas';
 
+    final parsedInterest = i(j['jasa_pinjaman'] ?? j['interest_amount'] ?? j['interest_paid'] ?? j['jasa']);
+    final parsedArrears = i(j['interest_arrears'] ?? j['tunggakan_bunga'] ?? j['remaining_interest'] ?? j['sisa_bunga_kemarin'] ?? j['bunga_menunggak']);
+    int parsedCurrent = i(j['current_interest'] ?? j['bunga_berjalan'] ?? j['bunga_bulan_ini']);
+    if (parsedCurrent == 0 && parsedInterest > 0) {
+      parsedCurrent = parsedInterest > parsedArrears ? parsedInterest - parsedArrears : parsedInterest;
+    }
+
     return InstallmentRecord(
       id: j['id'],
       no: i(j['angsuran_ke'] ?? j['installment_order'] ?? j['installment_number'] ?? j['no']),
@@ -125,11 +136,13 @@ class InstallmentRecord {
       proofCode: j['no_bukti'] ?? j['receipt_number'] ?? j['proof_code'] ?? '-',
       principalPaid: i(j['angsuran_pokok'] ?? j['principal_amount'] ?? j['principal_paid'] ?? j['pokok']),
       remainingBalance: i(j['sisa_pokok_akhir'] ?? j['ending_balance'] ?? j['remaining_balance'] ?? j['sisa_pokok']),
-      interestPaid: i(j['jasa_pinjaman'] ?? j['interest_amount'] ?? j['interest_paid'] ?? j['jasa']),
+      interestPaid: parsedInterest,
       penaltyPaid: i(j['denda'] ?? j['late_fee'] ?? j['penalty_fee'] ?? j['penalty_amount']),
       status: rawStatus.isNotEmpty ? rawStatus : (isPaidValue ? 'paid' : 'unpaid'),
       isPaid: isPaidValue,
       tellerName: j['teller_name'] ?? j['paraf'] ?? 'Kasir',
+      interestArrears: parsedArrears,
+      currentInterest: parsedCurrent,
     );
   }
 }
@@ -155,6 +168,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
   bool _isAdmin = true;
   bool _isLoading = true;
   bool _isPrinting = false;
+  bool _isOpeningMigrateModal = false;
   String? _errorMessage;
 
   // ── Data dari API
@@ -935,11 +949,22 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
 
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0);
 
+    // Hitung rincian pemisahan bunga berjalan dan tunggakan bunga
+    final int bungaBerjalan = nextUnpaid.currentInterest > 0
+        ? nextUnpaid.currentInterest
+        : (nextUnpaid.interestPaid > nextUnpaid.interestArrears
+            ? nextUnpaid.interestPaid - nextUnpaid.interestArrears
+            : nextUnpaid.interestPaid);
+    final int tunggakanKemarin = nextUnpaid.interestArrears;
+    final int totalBungaWajib = bungaBerjalan + tunggakanKemarin;
+
     final principalController = TextEditingController(
       text: nextUnpaid.principalPaid > 0 ? currencyFormatter.format(nextUnpaid.principalPaid).trim() : '0',
     );
     final interestController = TextEditingController(
-      text: nextUnpaid.interestPaid > 0 ? currencyFormatter.format(nextUnpaid.interestPaid).trim() : '0',
+      text: totalBungaWajib > 0
+          ? currencyFormatter.format(totalBungaWajib).trim()
+          : (nextUnpaid.interestPaid > 0 ? currencyFormatter.format(nextUnpaid.interestPaid).trim() : '0'),
     );
     final penaltyController = TextEditingController(text: '0');
 
@@ -1098,6 +1123,85 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
 
                       const SizedBox(height: 12),
 
+                      // Info Rincian Pemisahan Bunga (Transparansi Bunga Berjalan & Sisa Tunggakan)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primary),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Rincian Transparansi Kewajiban Bunga',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.adminNavy),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('• Bunga Berjalan Bulan Ini:', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                Text(
+                                  _formatRupiah(bungaBerjalan),
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.adminNavy),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('• Sisa Tunggakan Bunga Kemarin:', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                Text(
+                                  _formatRupiah(tunggakanKemarin),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: tunggakanKemarin > 0 ? const Color(0xFFDC2626) : const Color(0xFF166534),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 6),
+                              child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '• Total Kewajiban Bunga:',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.adminNavy),
+                                    ),
+                                    Text(
+                                      '(Bunga Berjalan + Tunggakan)',
+                                      style: TextStyle(fontSize: 9, color: AppColors.textMuted),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  _formatRupiah(totalBungaWajib),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
                       // 2 & 3: Bayar Bunga / Jasa (Rp) & Bayar Denda (Rp)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1113,13 +1217,14 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
                               enabled: !isSubmitting,
                               onChanged: (_) => setModalState(() {}),
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Bayar Bunga / Jasa (Rp)',
+                                helperText: 'Wajib: ${_formatRupiah(totalBungaWajib)}',
                                 isDense: true,
                                 prefixText: 'Rp ',
-                                prefixIcon: Icon(Icons.percent_rounded, color: AppColors.primary, size: 18),
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                prefixIcon: const Icon(Icons.percent_rounded, color: AppColors.primary, size: 18),
+                                border: const OutlineInputBorder(),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                               ),
                             ),
                           ),
@@ -1196,6 +1301,9 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
                                       final dateStr =
                                           "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
+                                      final num arrearsPaid = iPaid >= tunggakanKemarin ? tunggakanKemarin : iPaid;
+                                      final num currentInterestPaid = iPaid >= tunggakanKemarin ? (iPaid - tunggakanKemarin) : 0;
+
                                       final response = await http.post(
                                         Uri.parse('${AuthService.staticBaseUrl}/loans/installments/${nextUnpaid!.id}/pay'),
                                         headers: {
@@ -1207,6 +1315,8 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
                                           'receipt_number': proofController.text.trim(),
                                           'principal_amount': pPaid,
                                           'interest_amount': iPaid,
+                                          'current_interest': currentInterestPaid,
+                                          'interest_arrears_paid': arrearsPaid,
                                           'penalty_fee': penPaid,
                                           'penalty_amount': penPaid,
                                           'paid_at': dateStr,
@@ -1279,65 +1389,83 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
 
   // --- MODAL DIALOG MIGRASI SALDO AWAL PINJAMAN LAMA ---
   void _showMigrateLoanModal() async {
-    List<Map<String, dynamic>> membersList = [];
-    bool loadingMembers = true;
+    if (_isOpeningMigrateModal) return;
+    setState(() {
+      _isOpeningMigrateModal = true;
+    });
 
-    if (cachedActiveMembers != null && cachedActiveMembers!.isNotEmpty) {
-      membersList = List.from(cachedActiveMembers!);
-      loadingMembers = false;
-    } else {
-      try {
-        final token = await AuthService().getToken();
-        final resp = await http.get(
-          Uri.parse('${AuthService.staticBaseUrl}/members/active-list'),
-          headers: {
-            'Accept': 'application/json',
-            if (token != null) 'Authorization': 'Bearer $token',
-          },
-        ).timeout(const Duration(seconds: 60));
+    try {
+      List<Map<String, dynamic>> membersList = [];
+      bool loadingMembers = true;
 
-        if (resp.statusCode == 200) {
-          final body = jsonDecode(resp.body);
-          final dynamic raw = body['data'] is List
-              ? body['data']
-              : (body['data']?['data'] ?? body['members'] ?? []);
-          if (raw is List) {
-            membersList = raw.whereType<Map<String, dynamic>>().toList();
-            cachedActiveMembers = membersList;
+      if (cachedActiveMembers != null && cachedActiveMembers!.isNotEmpty) {
+        membersList = List.from(cachedActiveMembers!);
+        loadingMembers = false;
+      }
+
+      final formKey = GlobalKey<FormState>();
+      int? selectedMemberId = membersList.isNotEmpty ? int.tryParse(membersList.first['id']?.toString() ?? '') : null;
+      String selectedMethod = 'declining_balance'; // 'declining_balance' (2.50%) or 'flat' (1.00%)
+      final plafonController = TextEditingController();
+      final remainingPrincipalController = TextEditingController();
+      int remainingTenor = 12;
+      DateTime dueDate = DateTime.now().add(const Duration(days: 365));
+      final collateralController = TextEditingController(text: 'Migrasi Saldo Awal');
+      final notesController = TextEditingController(text: 'Migrasi Saldo Awal Pinjaman Lama');
+      bool isSubmitting = false;
+
+      num parseNum(String text) {
+        final clean = text.replaceAll(RegExp(r'[^0-9]'), '');
+        return clean.isEmpty ? 0 : num.parse(clean);
+      }
+
+      StateSetter? modalSetState;
+
+      // Pindahkan pemanggilan fetch API anggota ke background tanpa memblokir pembukaan modal
+      if (loadingMembers) {
+        () async {
+          try {
+            final token = await AuthService().getToken();
+            final resp = await http.get(
+              Uri.parse('${AuthService.staticBaseUrl}/members/active-list'),
+              headers: {
+                'Accept': 'application/json',
+                if (token != null) 'Authorization': 'Bearer $token',
+              },
+            ).timeout(const Duration(seconds: 60));
+
+            if (resp.statusCode == 200) {
+              final body = jsonDecode(resp.body);
+              final dynamic raw = body['data'] is List
+                  ? body['data']
+                  : (body['data']?['data'] ?? body['members'] ?? []);
+              if (raw is List) {
+                membersList = raw.whereType<Map<String, dynamic>>().toList();
+                cachedActiveMembers = membersList;
+                if (selectedMemberId == null && membersList.isNotEmpty) {
+                  selectedMemberId = int.tryParse(membersList.first['id']?.toString() ?? '');
+                }
+              }
+            }
+          } catch (_) {
+          } finally {
+            loadingMembers = false;
+            modalSetState?.call(() {});
           }
-        }
-      } catch (_) {}
-      loadingMembers = false;
-    }
+        }();
+      }
 
-    if (!mounted) return;
-
-    final formKey = GlobalKey<FormState>();
-    int? selectedMemberId = membersList.isNotEmpty ? int.tryParse(membersList.first['id']?.toString() ?? '') : null;
-    String selectedMethod = 'declining_balance'; // 'declining_balance' (2.50%) or 'flat' (1.00%)
-    final plafonController = TextEditingController();
-    final remainingPrincipalController = TextEditingController();
-    int remainingTenor = 12;
-    DateTime dueDate = DateTime.now().add(const Duration(days: 365));
-    final collateralController = TextEditingController(text: 'Migrasi Saldo Awal');
-    final notesController = TextEditingController(text: 'Migrasi Saldo Awal Pinjaman Lama');
-    bool isSubmitting = false;
-
-    num parseNum(String text) {
-      final clean = text.replaceAll(RegExp(r'[^0-9]'), '');
-      return clean.isEmpty ? 0 : num.parse(clean);
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (modalContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (modalContext) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              modalSetState = setModalState;
             final double rate = selectedMethod == 'flat' ? 1.00 : 2.50;
             final double origAmt = parseNum(plafonController.text).toDouble();
             final double currBal = parseNum(remainingPrincipalController.text).toDouble();
@@ -1872,7 +2000,14 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
         );
       },
     );
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isOpeningMigrateModal = false;
+      });
+    }
   }
+}
 
   // --- MODAL SEARCHABLE / TYPEAHEAD PICKER UNTUK ANGGOTA KOPERASI ---
   Future<Map<String, dynamic>?> _showMemberSearchPicker(
@@ -2082,7 +2217,7 @@ class _LoanInstallmentCardScreenState extends State<LoanInstallmentCardScreen> {
                               ],
                             ),
                             OutlinedButton.icon(
-                              onPressed: _showMigrateLoanModal,
+                              onPressed: _isOpeningMigrateModal ? null : _showMigrateLoanModal,
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: const Color(0xFFD97706),
                                 side: const BorderSide(color: Color(0xFFD97706), width: 1.5),
