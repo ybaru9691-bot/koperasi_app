@@ -122,16 +122,20 @@ class InstallmentRecord {
   /// - paidAt != null dan tidak kosong / '-'
   /// - receiptNumber != null dan tidak kosong / '-'
   /// - proofCode tidak kosong dan bukan '-'
-  bool get isEffectivelyPaid {
-    if (isPaid) return true;
-    final s = status.trim().toLowerCase();
-    if (s == 'paid' || s == 'lunas' || s == 'sudah_bayar' || s == 'selesai') return true;
-    if (paidAt != null && paidAt!.trim().isNotEmpty && paidAt!.trim() != '-' && paidAt!.trim() != 'null') return true;
-    if (receiptNumber != null && receiptNumber!.trim().isNotEmpty && receiptNumber!.trim() != '-' && receiptNumber!.trim() != 'null') return true;
-    if (proofCode.trim().isNotEmpty && proofCode.trim() != '-' && proofCode.trim() != 'null') return true;
-    return false;
-  }
+bool get isEffectivelyPaid {
+  if (isPaid) return true;
+  final s = status.trim().toLowerCase();
+  
+  // Tambahkan 'partial' di sini!
+  if (s == 'paid' || s == 'lunas' || s == 'sudah_bayar' || s == 'selesai' || s == 'partial') return true;
 
+  // Jika sudah ada nomor bukti kas masuk, PASTI sudah pernah dibayar di kasir!
+  if (receiptNumber != null && receiptNumber!.trim().isNotEmpty && receiptNumber!.trim() != '-' && receiptNumber!.trim() != 'null') return true;
+  if (proofCode.trim().isNotEmpty && proofCode.trim() != '-' && proofCode.trim() != 'null') return true;
+  if (paidAt != null && paidAt!.trim().isNotEmpty && paidAt!.trim() != '-' && paidAt!.trim() != 'null') return true;
+  
+  return false;
+}
   factory InstallmentRecord.fromJson(Map<String, dynamic> j) {
     int i(dynamic v) => int.tryParse(v?.toString() ?? '0') ?? 0;
 
