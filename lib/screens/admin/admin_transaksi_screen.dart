@@ -79,6 +79,8 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
   int _totalTransactions = 0;
 
   List<TransactionItem> _transactions = [];
+  final Set<int> _deletingIds = {};
+  bool _isDeleteConfirmationOpen = false;
 
   @override
   void initState() {
@@ -174,27 +176,82 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
   }
 
   Future<void> _deleteTransaction(int id) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final bool confirm = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Transaksi', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-        content: const Text('Apakah Anda yakin ingin menghapus transaksi ini?\n\nTindakan ini akan mengembalikan saldo Kas dan saldo Simpanan Anggota ke keadaan semula secara permanen.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Ya, Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    ) ?? false;
+    // 1. Guard klik ganda / spam jika transaksi sedang diproses atau dialog konfirmasi sedang terbuka
+    if (_deletingIds.contains(id) || _isDeleteConfirmationOpen) return;
+    _isDeleteConfirmationOpen = true;
 
-    if (!confirm) return;
+    final messenger = ScaffoldMessenger.of(context);
+    bool confirm = false;
+    try {
+      confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Hapus Transaksi', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          content: const Text('Apakah Anda yakin ingin menghapus transaksi ini?\n\nTindakan ini akan mengembalikan saldo Kas dan saldo Simpanan Anggota ke keadaan semula secara permanen.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Ya, Hapus'),
+            ),
+          ],
+        ),
+      ) ?? false;
+    } finally {
+      _isDeleteConfirmationOpen = false;
+    }
+
+    if (!confirm || !mounted) return;
+    if (_deletingIds.contains(id)) return;
+
+    setState(() {
+      _deletingIds.add(id);
+    });
+
+    // 2. Tampilkan dialog loading pemblokir layar
+    bool loadingDialogShown = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24.0, horizontal: 20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.red,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text(
+                  'Menghapus transaksi...',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    loadingDialogShown = true;
 
     try {
       final token = await AuthService().getToken();
@@ -202,7 +259,13 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
       final response = await http.delete(uri, headers: {
         'Accept': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
-      });
+      }).timeout(const Duration(seconds: 30));
+
+      // Tutup dialog loading sebelum menampilkan feedback SnackBar dan refresh data
+      if (loadingDialogShown && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        loadingDialogShown = false;
+      }
 
       if (!mounted) return;
 
@@ -217,10 +280,27 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
         );
       }
     } catch (e) {
+      if (loadingDialogShown && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        loadingDialogShown = false;
+      }
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
+    } finally {
+      // 3. Pastikan loading dialog ditutup dan ID dihapus dari _deletingIds
+      if (loadingDialogShown && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        loadingDialogShown = false;
+      }
+      if (mounted) {
+        setState(() {
+          _deletingIds.remove(id);
+        });
+      } else {
+        _deletingIds.remove(id);
+      }
     }
   }
 
@@ -581,6 +661,7 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
                       ],
                       rows: _transactions.map((item) {
                         final isDeposit = item.type == 'deposit';
+                        final isDeleting = _deletingIds.contains(item.id);
                         return DataRow(
                           cells: [
                             DataCell(Column(
@@ -618,23 +699,40 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
                                 children: [
                                   // Tombol Edit (biru)
                                   Tooltip(
-                                    message: 'Edit / Koreksi Transaksi',
+                                    message: isDeleting ? 'Sedang diproses...' : 'Edit / Koreksi Transaksi',
                                     child: InkWell(
-                                      onTap: () => _showEditDialog(item),
+                                      onTap: isDeleting ? null : () => _showEditDialog(item),
                                       borderRadius: BorderRadius.circular(6),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                         decoration: BoxDecoration(
-                                          color: Colors.blue[700]!.withValues(alpha: 0.1),
+                                          color: isDeleting
+                                              ? Colors.grey.withValues(alpha: 0.08)
+                                              : Colors.blue[700]!.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: Colors.blue[700]!.withValues(alpha: 0.4)),
+                                          border: Border.all(
+                                            color: isDeleting
+                                                ? Colors.grey.withValues(alpha: 0.25)
+                                                : Colors.blue[700]!.withValues(alpha: 0.4),
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.edit_outlined, size: 14, color: Colors.blue[700]),
+                                            Icon(
+                                              Icons.edit_outlined,
+                                              size: 14,
+                                              color: isDeleting ? Colors.grey : Colors.blue[700],
+                                            ),
                                             const SizedBox(width: 4),
-                                            Text('Edit', style: TextStyle(fontSize: 12, color: Colors.blue[700], fontWeight: FontWeight.w600)),
+                                            Text(
+                                              'Edit',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDeleting ? Colors.grey : Colors.blue[700],
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -643,23 +741,56 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
                                   const SizedBox(width: 6),
                                   // Tombol Hapus (merah)
                                   Tooltip(
-                                    message: 'Hapus Transaksi',
+                                    message: isDeleting ? 'Sedang menghapus...' : 'Hapus Transaksi',
                                     child: InkWell(
-                                      onTap: () => _deleteTransaction(item.id),
+                                      onTap: isDeleting ? null : () => _deleteTransaction(item.id),
                                       borderRadius: BorderRadius.circular(6),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                         decoration: BoxDecoration(
-                                          color: Colors.red.withValues(alpha: 0.08),
+                                          color: isDeleting
+                                              ? Colors.grey.withValues(alpha: 0.12)
+                                              : Colors.red.withValues(alpha: 0.08),
                                           borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: Colors.red.withValues(alpha: 0.35)),
+                                          border: Border.all(
+                                            color: isDeleting
+                                                ? Colors.grey.withValues(alpha: 0.35)
+                                                : Colors.red.withValues(alpha: 0.35),
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.delete_outline, size: 14, color: Colors.red[700]),
-                                            const SizedBox(width: 4),
-                                            Text('Hapus', style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.w600)),
+                                            if (isDeleting) ...[
+                                              const SizedBox(
+                                                width: 14,
+                                                height: 14,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Hapus...',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ] else ...[
+                                              Icon(Icons.delete_outline, size: 14, color: Colors.red[700]),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Hapus',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.red[700],
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
