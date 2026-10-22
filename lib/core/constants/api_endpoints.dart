@@ -10,6 +10,9 @@ abstract class ApiEndpoints {
 
   static String get baseUrl => kReleaseMode ? productionBaseUrl : localBaseUrl;
 
+  // --- APP VERSION & SYSTEM ENDPOINTS ---
+  static String get appVersion => '$baseUrl/app-version';
+
   // --- AUTH ENDPOINTS ---
   static String get login => '$baseUrl/login';
   static String get logout => '$baseUrl/logout';

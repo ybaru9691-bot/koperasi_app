@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_constants.dart';
 import '../../services/auth_service.dart';
+import '../../services/app_update_service.dart';
 import '../../widgets/curved_text.dart';
+import '../../widgets/force_update_dialog.dart';
 import '../dashboard_router.dart';
 import 'welcome_screen.dart';
 
@@ -20,6 +22,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late final Future<AppUpdateInfo?> _versionCheckFuture;
 
   // Animasi Logo 1 (Bethania)
   late Animation<double> _logo1FadeIn;
@@ -32,6 +35,8 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    // Jalankan pengecekan versi aplikasi secara paralel di latar belakang selama sekuens animasi berjalan
+    _versionCheckFuture = AppUpdateService().checkUpdate();
     _initSequentialAnimations();
   }
 
@@ -84,8 +89,40 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
   }
 
-  /// Pengecekan status Sesi & Navigasi otomatis setelah sekuens animasi selesai
+  /// Pengecekan Versi Aplikasi & Navigasi otomatis setelah sekuens animasi selesai
   Future<void> _navigateToNextScreen() async {
+    if (!mounted) return;
+
+    // 1. Ambil hasil evaluasi pengecekan versi aplikasi
+    AppUpdateInfo? updateInfo;
+    try {
+      updateInfo = await _versionCheckFuture;
+    } catch (e) {
+      debugPrint('[SplashScreen] Error saat mengevaluasi versi aplikasi: $e');
+    }
+
+    if (!mounted) return;
+
+    // 2. Jika butuh FORCE UPDATE (Wajib): Hentikan navigasi agar user tertahan di dialog update
+    if (updateInfo != null && updateInfo.isMandatory) {
+      debugPrint('[SplashScreen] Force update terdeteksi ($updateInfo). Menghentikan navigasi.');
+      ForceUpdateDialog.show(context, updateInfo: updateInfo);
+      return; // WAJIB return agar user tertahan dan tidak bisa masuk ke Login/Dashboard
+    }
+
+    // 3. Jika ada update opsional (tidak wajib), tampilkan dialog dan lanjutkan jika ditutup
+    if (updateInfo != null && updateInfo.shouldUpdate) {
+      debugPrint('[SplashScreen] Update opsional tersedia ($updateInfo). Menampilkan dialog opsional.');
+      await ForceUpdateDialog.show(context, updateInfo: updateInfo);
+      if (!mounted) return;
+    }
+
+    // 4. Lanjutkan alur normal ke Dashboard atau WelcomeScreen
+    await _proceedToNextScreen();
+  }
+
+  /// Melanjutkan alur navigasi aplikasi berdasarkan validitas sesi user
+  Future<void> _proceedToNextScreen() async {
     if (!mounted) return;
 
     final bool isSessionValid = await AuthService().isSessionValid();

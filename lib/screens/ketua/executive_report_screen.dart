@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:html' as html;
+import 'package:universal_html/html.dart' as html;
 import '../../constants/app_colors.dart';
 import '../../data/models/executive_report_model.dart';
 import '../../services/auth_service.dart';

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:html' as html;
+import 'package:universal_html/html.dart' as html;
 import '../../services/auth_service.dart';
 import '../../widgets/reports/tabelaris_table_view.dart';
 
